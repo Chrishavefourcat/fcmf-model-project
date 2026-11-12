@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>模型评级系统</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="layout">
+    <main class="work">
+      <header class="header">
+        <div class="top-left">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M5 22V13M12 22V7M19 22V11M25 22H3"/><path d="m5 8 7-5 7 4 6-4"/></svg>
+          </span>
+          <div>
+            <div class="crumb">模型管理 / 评级工作台</div>
+            <div class="top-title">模型评级系统</div>
+          </div>
+        </div>
+        <div class="top-meta">
+          <span>模型：<b id="currentModelName">未选择</b></span>
+          <span>数据库：<b id="currentDatabase">未选择</b></span>
+        </div>
+      </header>
+
+      <div class="workspace-body">
+      <div id="scoreWorkspace">
+      <div class="workflow-bar">
+      <section id="workflowSteps" class="steps" aria-label="评级流程">
+        <button class="step active" data-step="0"><span class="step-number">1</span><span class="step-copy"><strong>样本选择</strong><small>确定模型与评级主体</small></span></button>
+        <button class="step" data-step="1" disabled><span class="step-number">2</span><span class="step-copy"><strong>数据录入</strong><small>核对并补充基础数据</small></span></button>
+        <button class="step" data-step="2" disabled><span class="step-number">3</span><span class="step-copy"><strong>初步评级</strong><small>查看得分与初评结果</small></span></button>
+        <button class="step" data-step="3" disabled><span class="step-number">4</span><span class="step-copy"><strong>批量排查</strong><small>完成排查项与调整</small></span></button>
+        <button class="step" data-step="4" disabled><span class="step-number">5</span><span class="step-copy"><strong>最终定级</strong><small>确认等级并导出结果</small></span></button>
+      </section>
+
+      <section class="actions">
+        <div class="actions-buttons">
+          <button id="prevBtn" class="plain">上一步</button>
+          <button id="nextBtn" class="primary">下一步</button>
+        </div>
+      </section>
+
+      </div>
+      <section class="panel" data-panel="0">
+        <div class="sample-grid">
+          <div class="form-card">
+            <div class="mini-title">评级设置</div>
+            <p class="field-help">先载入数据源，再选择本次使用的模型。</p>
+            <label for="modelSelect">* 模型选择</label>
+            <div class="inline model-source-row">
+              <select id="modelSelect" disabled><option value="">正在加载模型…</option></select>
+              <button id="selectDataSourceBtn" class="primary" type="button">数据源选择</button>
+            </div>
+            <div id="dataSourcePath" class="source-path" title="">未选择数据源</div>
+            <div id="modelStatus" class="muted" role="status" aria-live="polite"></div>
+            <label for="searchInput">* 样本选择</label>
+            <div class="inline search-box">
+              <input id="searchInput" type="search" placeholder="点击选择公司，或输入主体名称、统一代码、债券代码" disabled>
+              <div id="companySuggest" class="suggestions hidden"></div>
+            </div>
+            <div id="sampleSelectionStatus" class="muted" role="status" aria-live="polite"></div>
+            <label for="yearSelect">* 数据日期</label>
+            <div class="inline date-row">
+              <select id="yearSelect" aria-label="数据年份"><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select>
+              <span>年</span>
+              <select id="reportSelect" aria-label="报告类型"><option value="12-31">年报</option><option value="06-30">半年报</option><option value="03-31">一季报</option><option value="09-30">三季报</option></select>
+            </div>
+          </div>
+          <div class="table-box">
+            <div class="table-heading"><h3>已选评级样本</h3><p>搜索添加主体，可在列表中查看并管理评级样本。</p></div>
+            <div class="button-row sample-toolbar">
+              <input id="sampleFilter" type="search" aria-label="搜索已选样本" placeholder="搜索已选样本：名称、统一代码、债券代码">
+              <button id="deleteSelectedBtn" class="danger" disabled>删除选中</button>
+              <span id="sampleCount" class="muted" role="status"></span>
+            </div>
+            <div class="sample-list-scroll">
+            <table class="sample-table">
+              <thead>
+                <tr>
+                  <th>序号</th>
+                  <th><input id="checkAll" type="checkbox" aria-label="全选当前显示的样本"></th>
+                  <th>批量评级样本</th>
+                  <th>原定级</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="sampleRows"><tr><td colspan="5" class="empty">搜索并加入评级样本</td></tr></tbody>
+            </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="1">
+        <div class="button-row field-toolbar">
+          <button class="danger" id="resetCurrentBtn">重置为数据库数据</button>
+          <button class="primary" id="exportFieldsBtn">导出Excel</button>
+          <button class="primary" id="importFieldsBtn">导入Excel</button>
+          <button class="primary" id="toggleIndicatorsBtn" aria-pressed="false" disabled>展示指标</button>
+          <span id="indicatorCalculationWarning" class="indicator-calculation-warning hidden" role="status"></span>
+          <span id="fieldViewStatus" class="field-view-status muted" role="status"></span>
+          <button id="clearFieldViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+          <input id="importFieldsInput" class="hidden" type="file" accept=".xlsx">
+        </div>
+        <div class="table-scroll">
+          <table class="wide-table">
+            <thead id="fieldHead"></thead>
+            <tbody id="fieldRows"><tr><td class="empty">请先选择样本</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="2">
+        <div class="button-row">
+          <button class="danger">重置为初始数据</button>
+          <button class="primary" id="scoringRulesBtn" disabled>评分规则配置</button>
+          <button class="primary" id="gradeRulesBtn" disabled>等级规则配置</button>
+          <span id="initialValueStatus" class="muted" role="status" aria-live="polite"></span>
+          <span id="initialViewStatus" class="field-view-status muted" role="status"></span>
+          <button id="clearInitialViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+        </div>
+        <div class="table-scroll">
+        <table class="wide-table score-matrix">
+          <thead id="initialHead"></thead>
+          <tbody id="initialRows"><tr><td colspan="8" class="empty">暂无结果</td></tr></tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="3">
+        <div class="button-row">
+          <button class="danger" id="resetChecksBtn">重置为初始数据</button>
+          <button class="primary" id="exportChecksBtn">导出Excel</button>
+          <button class="primary" id="importChecksBtn">导入Excel</button>
+          <input id="importChecksInput" class="hidden" type="file" accept=".xlsx">
+          <span id="checkTransferStatus" class="muted" role="status" aria-live="polite"></span>
+          <span id="checkViewStatus" class="field-view-status muted" role="status"></span>
+          <button id="clearCheckViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+        </div>
+        <div class="table-scroll">
+        <table class="wide-table score-matrix">
+          <thead id="checkHead"></thead>
+          <tbody id="checkRows"><tr><td colspan="7" class="empty">暂无排查结果</td></tr></tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="4">
+        <div class="panel-toolbar">
+          <button id="exportFinalBtn" class="primary">数据导出</button>
+          <span id="finalExportStatus" class="muted" role="status" aria-live="polite"></span>
+          <span id="finalViewStatus" class="field-view-status muted" role="status"></span>
+          <button id="clearFinalViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+        </div>
+        <div class="final-meta">
+          <span>行业：城投行业</span>
+          <span>评级模型：<b id="finalModelName">未选择</b></span>
+          <span>评级人员：本地应用</span>
+          <span>评级日期：<b id="todayText"></b></span>
+        </div>
+        <div class="table-scroll final-table-scroll">
+        <table>
+          <thead id="finalHead">
+            <tr>
+              <th>行编号</th>
+              <th>主体名称</th>
+              <th>债券代码</th>
+              <th>指标得分</th>
+              <th>排查得分</th>
+              <th>最终得分</th>
+              <th>初评等级</th>
+              <th>最终等级</th>
+              <th>人工标识</th>
+              <th>评级说明</th>
+            </tr>
+          </thead>
+          <tbody id="finalRows"><tr><td colspan="10" class="empty">暂无最终定级</td></tr></tbody>
+        </table>
+        </div>
+      </section>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="dataSourceModal" class="data-source-dialog" aria-labelledby="dataSourceTitle" aria-describedby="dataSourceHelp dataSourceNote">
+    <form id="dataSourceForm" class="modal-card data-source-card">
+      <div class="modal-head">
+        <span class="data-source-title-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><ellipse cx="12" cy="5" rx="7.5" ry="3"/><path d="M4.5 5v7c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V5M4.5 12v7c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-7"/></svg>
+        </span>
+        <div class="data-source-heading">
+          <strong id="dataSourceTitle">数据源选择</strong>
+          <p>从本机载入模型数据库</p>
+        </div>
+      </div>
+      <div class="data-source-fields">
+        <label for="dataSourceDirectory">数据源路径</label>
+        <div class="data-source-input-row">
+          <input id="dataSourceDirectory" type="text" required autocomplete="off" spellcheck="false" placeholder="例如：E:\模型数据 或 E:\模型数据\模型.db" aria-describedby="dataSourceHelp dataSourceNote" autofocus>
+          <div class="data-source-browse">
+            <button id="dataSourceBrowse" class="plain" type="button" aria-expanded="false" aria-controls="dataSourceBrowseOptions">
+              浏览…
+              <svg class="data-source-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m4 6 4 4 4-4"/></svg>
+            </button>
+            <div id="dataSourceBrowseOptions" class="data-source-browse-options" role="group" aria-label="选择数据源类型" hidden>
+              <button id="dataSourceBrowseDirectory" class="plain" type="button">
+                <span class="data-source-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/><path d="M3 10h18"/></svg></span>
+                <span class="data-source-option-copy"><span>选择文件夹</span><small>加载文件夹中的全部 DB 文件</small></span>
+              </button>
+              <button id="dataSourceBrowseFile" class="plain" type="button">
+                <span class="data-source-option-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span>
+                <span class="data-source-option-copy"><span>选择 DB 文件</span><small>加载一个指定的数据库文件</small></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <p id="dataSourceHelp" class="muted">选择文件夹中的全部 .db 文件，或单个 DB 文件；也可直接输入完整路径。</p>
+        <p id="dataSourceNote" class="data-source-note">切换成功后，当前样本及页面录入内容将被清空。</p>
+        <div id="dataSourceStatus" class="muted" role="status" aria-live="polite"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="dataSourceCancel" class="plain" type="button">取消</button>
+        <button id="dataSourceSubmit" class="primary" type="submit">使用此数据源</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="fieldFilterPopover" class="field-filter-popover" popover="auto" role="dialog" aria-labelledby="fieldFilterTitle">
+    <div class="field-filter-heading"><strong id="fieldFilterTitle">排序与筛选</strong><button id="fieldFilterClose" class="plain" type="button" aria-label="关闭排序筛选">×</button></div>
+    <div class="field-filter-sort" role="group" aria-label="排序方式">
+      <button type="button" data-field-sort="asc"><span aria-hidden="true">↑</span> 升序</button>
+      <button type="button" data-field-sort="desc"><span aria-hidden="true">↓</span> 降序</button>
+      <button type="button" data-field-sort="none">恢复原顺序</button>
+    </div>
+    <button id="fieldFilterClear" class="field-filter-clear" type="button">清除此列筛选</button>
+    <div class="field-filter-search"><input id="fieldFilterSearch" type="search" placeholder="搜索筛选值，空格分隔关键词" aria-label="搜索筛选值" autocomplete="off"></div>
+    <div class="field-filter-tools">
+      <label><input id="fieldFilterAll" type="checkbox">全选</label>
+      <button id="fieldFilterInvert" type="button">反选</button>
+      <button id="fieldFilterDuplicates" type="button">重复项</button>
+      <button id="fieldFilterUnique" type="button">唯一项</button>
+    </div>
+    <div id="fieldFilterOptions" class="field-filter-options" role="group" aria-label="可选值"></div>
+    <div class="field-filter-foot"><span id="fieldFilterCount" class="muted" role="status"></span><button id="fieldFilterCancel" class="plain" type="button">取消</button><button id="fieldFilterApply" class="primary" type="button">确定</button></div>
+  </div>
+
+  <dialog id="fieldColumnModal" class="column-edit-dialog" aria-labelledby="fieldColumnTitle" aria-describedby="fieldColumnHelp">
+    <form id="fieldColumnForm" class="modal-card column-edit-card">
+      <div class="modal-head">
+        <strong id="fieldColumnTitle">按列修改</strong>
+        <button id="fieldColumnClose" class="plain" type="button" aria-label="关闭按列修改">关闭</button>
+      </div>
+      <p id="fieldColumnHelp" class="column-edit-help"></p>
+      <div class="column-edit-scroll">
+        <table class="column-edit-table">
+          <thead><tr><th class="column-edit-seq">序号</th><th>主体名称</th><th id="fieldColumnValueHead">字段值</th></tr></thead>
+          <tbody id="fieldColumnRows"></tbody>
+        </table>
+      </div>
+      <div class="modal-foot">
+        <span id="fieldColumnStatus" class="muted" role="status" aria-live="polite"></span>
+        <button id="fieldColumnCancel" class="plain" type="button">取消</button>
+        <button id="fieldColumnSave" class="primary" type="submit">保存并重新计算</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="ratingColumnModal" class="column-edit-dialog rating-column-dialog" aria-labelledby="ratingColumnTitle" aria-describedby="ratingColumnHelp">
+    <form id="ratingColumnForm" class="modal-card column-edit-card">
+      <div class="modal-head"><strong id="ratingColumnTitle">按列修改</strong><button id="ratingColumnClose" class="plain" type="button" aria-label="关闭按列修改">关闭</button></div>
+      <p id="ratingColumnHelp" class="column-edit-help"></p>
+      <div class="column-edit-scroll"><table class="column-edit-table rating-column-table"><thead id="ratingColumnHead"></thead><tbody id="ratingColumnRows"></tbody></table></div>
+      <div class="modal-foot"><span id="ratingColumnStatus" class="muted" role="status" aria-live="polite"></span><button id="ratingColumnCancel" class="plain" type="button">取消</button><button id="ratingColumnSave" class="primary" type="submit">保存并重新计算</button></div>
+    </form>
+  </dialog>
+
+  <div id="fieldModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="modalTitle">字段数据修改</strong>
+        <button id="modalClose" class="plain">关闭</button>
+      </div>
+      <div id="modalFields" class="modal-fields"></div>
+      <div class="modal-foot">
+        <button id="modalSave" class="primary">保存字段数据</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="checkModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="checkModalTitle">排查项录入</strong>
+        <button id="checkModalClose" class="plain">关闭</button>
+      </div>
+      <div id="checkModalFields" class="modal-fields"></div>
+      <div class="modal-foot">
+        <span id="checkModalStatus" class="muted" role="status" aria-live="polite"></span>
+        <button id="checkModalSave" class="primary">确认</button>
+      </div>
+    </div>
+  </div>
+  <div id="rulesModal" class="modal hidden">
+    <div class="modal-card rules-card">
+      <div class="modal-head">
+        <strong>评分规则配置</strong>
+        <button id="rulesClose" class="plain">关闭</button>
+      </div>
+      <div class="rules-scroll">
+        <table class="rules-table">
+          <thead><tr><th>序号</th><th>指标名称</th><th>指标权重</th><th>指标取值公式</th><th>操作</th></tr></thead>
+          <tbody id="rulesRows"></tbody>
+        </table>
+      </div>
+      <div class="modal-foot">
+        <span id="rulesStatus" class="muted" role="status"></span>
+        <button id="rulesSave" class="primary">确定</button>
+      </div>
+    </div>
+  </div>
+  <div id="gradeRulesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="gradeRulesTitle">
+    <div class="modal-card rules-card grade-rules-card">
+      <div class="modal-head">
+        <strong id="gradeRulesTitle">等级规则配置</strong>
+        <button id="gradeRulesClose" class="plain">关闭</button>
+      </div>
+      <div id="gradeRulesSource" class="muted grade-rules-source"></div>
+      <div class="rules-scroll">
+        <table class="rules-table grade-rules-table">
+          <thead><tr><th>序号</th><th>评级</th><th>左边界值</th><th>右边界值</th><th>操作</th></tr></thead>
+          <tbody id="gradeRulesRows"></tbody>
+        </table>
+      </div>
+      <div class="modal-foot">
+        <span id="gradeRulesStatus" class="muted" role="status" aria-live="polite"></span>
+        <button id="gradeRulesReload" class="plain" title="读取数据库最新规则，清除当前页面的等级修改，不写入数据库">读取数据库最新规则</button>
+        <button id="gradeRulesSave" class="primary">确定</button>
+      </div>
+    </div>
+  </div>
+  <script src="/grade-rules.js"></script>
+  <script src="/number-format.js"></script>
+  <script src="/column-filters.js"></script>
+  <script src="/select-controls.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
