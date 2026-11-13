@@ -1,0 +1,9 @@
+* text=auto
+
+# Keep the Linux launcher usable after cloning on Windows.
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# SQLite models must be copied without text conversions.
+*.db binary

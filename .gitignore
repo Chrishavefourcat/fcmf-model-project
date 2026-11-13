@@ -1,0 +1,34 @@
+# Python environments and cache
+.venv/
+.build-venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local logs and test output
+*.log
+.coverage
+htmlcov/
+
+# Historical desktop packaging output
+build/
+dist/
+release/
+*.spec
+
+# Local backups and downloaded development tools
+backups/
+downloads/
+
+# Editor and operating-system metadata
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Generated source-only handoff
+交付源码*/
+交付源码*.zip
+.bootstrap-qa-path.txt
