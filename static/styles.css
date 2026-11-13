@@ -200,6 +200,11 @@ td.edited-cell, input.edited-cell, tbody tr:hover > td.edited-cell { background:
 .field-filter-trigger span { font-size: 11px; line-height: 1; }
 .field-filter-trigger.active, .field-filter-trigger[aria-expanded="true"] { border-color: #aacff6; background: #e5f1ff; color: var(--blue); }
 .field-filter-trigger:hover:not(:disabled) { color: var(--blue); background: #eaf4ff; }
+/* Keep data-entry filters beside the heading, with room for the sort direction. */
+#fieldHead .field-filter-header { padding: 6px 46px 6px 10px; }
+#fieldHead .field-filter-trigger { top: 50%; bottom: auto; transform: translateY(-50%); }
+#fieldHead .field-column-edit { min-height: 26px; padding: 2px 0; }
+#fieldHead .field-header-label, #fieldHead .field-column-label { min-width: 0; }
 .field-view-status { font-size: 12px; }
 .field-filter-popover { position: fixed; inset: auto; margin: 0; width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid #d9e5f2; border-radius: 10px; background: #fff; color: #40596c; box-shadow: 0 14px 42px rgba(28, 61, 98, .2); overflow: hidden; }
 .field-filter-popover:popover-open { display: flex; flex-direction: column; }
