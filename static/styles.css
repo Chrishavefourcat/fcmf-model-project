@@ -203,10 +203,10 @@ td.edited-cell, input.edited-cell, tbody tr:hover > td.edited-cell { background:
 .field-filter-trigger span { font-size: 11px; line-height: 1; }
 .field-filter-trigger.active, .field-filter-trigger[aria-expanded="true"] { border-color: #aacff6; background: #e5f1ff; color: var(--blue); }
 .field-filter-trigger:hover:not(:disabled) { color: var(--blue); background: #eaf4ff; }
-/* Keep data-entry filters beside the heading, with room for the sort direction. */
-#fieldHead .field-filter-header, #initialHead .field-filter-header, #fieldColumnModal th.field-filter-header, #ratingColumnModal th.field-filter-header { padding: 6px 46px 6px 10px; }
-#fieldHead .field-filter-trigger, #initialHead .field-filter-trigger, #fieldColumnModal .field-filter-trigger, #ratingColumnModal .field-filter-trigger { top: 50%; bottom: auto; transform: translateY(-50%); }
-#initialHead th[rowspan] { vertical-align: middle; }
+/* Keep filter buttons beside headings, with room for the sort direction. */
+#fieldHead .field-filter-header, #initialHead .field-filter-header, #checkHead .field-filter-header, #finalHead .field-filter-header, #fieldColumnModal th.field-filter-header, #ratingColumnModal th.field-filter-header { padding: 6px 46px 6px 10px; }
+#fieldHead .field-filter-trigger, #initialHead .field-filter-trigger, #checkHead .field-filter-trigger, #finalHead .field-filter-trigger, #fieldColumnModal .field-filter-trigger, #ratingColumnModal .field-filter-trigger { top: 50%; bottom: auto; transform: translateY(-50%); }
+#initialHead th[rowspan], #checkHead th[rowspan] { vertical-align: middle; }
 #fieldHead .field-column-edit { min-height: 26px; padding: 2px 0; }
 #fieldHead .field-header-label, #fieldHead .field-column-label, #fieldColumnModal .field-header-label, #ratingColumnModal .field-header-label { min-width: 0; }
 .field-view-status { font-size: 12px; }

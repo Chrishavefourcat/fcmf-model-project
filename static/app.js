@@ -2779,7 +2779,7 @@ function renderSummaryPanels() {
   $("exportFinalBtn").disabled = !checksReady() || !!checkTransfer;
   const data = finalTableData(), rows = tableDisplayRows("final", data);
   renderTableViewStatus("final", rows.length, data.rows.length);
-  if ($("finalHead")) $("finalHead").innerHTML = `<tr><th>行编号</th>${data.columns.map((column) => `<th class="field-filter-header">${column.label}${fieldFilterButton(column.key, column.label, "final")}</th>`).join("")}</tr>`;
+  if ($("finalHead")) $("finalHead").innerHTML = `<tr><th>序号</th>${data.columns.map((column) => `<th class="field-filter-header">${column.label}${fieldFilterButton(column.key, column.label, "final")}</th>`).join("")}</tr>`;
   $("finalRows").innerHTML = rows.map((row) => `
     <tr data-company-id="${esc(row.company_id)}">
       <td>${row.index}</td><td>${esc(row.company_name)}</td><td>${esc(row.bond_id)}</td>
