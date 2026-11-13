@@ -773,7 +773,8 @@ function renderTableView(table = "field") {
 function renderTableViewStatus(table, count, total) {
   const view = tableViewState(table), filterCount = Object.keys(view.filters).length;
   const status = $(`${table}ViewStatus`), clearButton = $(`clear${table[0].toUpperCase() + table.slice(1)}ViewBtn`);
-  if (status) status.textContent = `显示 ${count} / ${total} 家公司${filterCount ? ` · 已筛选 ${filterCount} 列` : ""}${view.sort ? ` · ${view.sort.direction === "asc" ? "升序" : "降序"}` : ""}`;
+  if (status) status.textContent = table === "field" ? `${count} / ${total} 家公司`
+    : `显示 ${count} / ${total} 家公司${filterCount ? ` · 已筛选 ${filterCount} 列` : ""}${view.sort ? ` · ${view.sort.direction === "asc" ? "升序" : "降序"}` : ""}`;
   if (clearButton) clearButton.classList.toggle("hidden", !filterCount && !view.sort);
 }
 
@@ -956,7 +957,7 @@ function updateFieldEditStatus(reset = false) {
   const jobs = [...checkEditJobs.values()].filter((job) => job.source);
   if (status) {
     status.textContent = reset ? "" : jobs.some((job) => job.error) ? "计算失败，输入已保留，请重新编辑后重试。"
-      : jobs.length ? "源数据已修改，正在计算指标…" : status.textContent ? "指标已更新，仅当前页面生效。" : "";
+      : jobs.length ? "源数据已修改，正在计算指标…" : "";
   }
   if ($("exportFieldsBtn")) $("exportFieldsBtn").disabled = checkEditJobs.size > 0;
 }
