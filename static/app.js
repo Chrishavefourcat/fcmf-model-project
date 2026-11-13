@@ -929,7 +929,92 @@ function clearFieldTableView(table = "field") {
   renderTableView(table);
 }
 
+function activeSourceInput() {
+  const input = document.activeElement;
+  return input?.classList?.contains?.("source-value-input") && input.sourceController === modelController
+    && input.dataset.period === periodValue() && selectedCompanyIds().includes(input.dataset.companyId) ? input : null;
+}
+
+function fieldIndicatorDisplay(companyId, indicatorId, displayed) {
+  const job = checkEditJobs.get(companyId);
+  return job ? (job.error ? "计算失败" : "计算中…") : displayed[indicatorId] ?? "";
+}
+
+function updateFieldIndicatorCells(companyId = "") {
+  const rows = new Map((state.fieldMatrix.rows || []).map((row) => [row.company.company_id, row]));
+  document.querySelectorAll("#fieldRows tr[data-company-id]").forEach((tr) => {
+    if (companyId && tr.dataset.companyId !== companyId) return;
+    const displayed = indicatorDisplayValues(tr.dataset.companyId, rows.get(tr.dataset.companyId));
+    tr.querySelectorAll('[data-column-kind="indicator"]').forEach((cell) => {
+      cell.textContent = fieldIndicatorDisplay(tr.dataset.companyId, cell.dataset.indicatorId, displayed);
+    });
+  });
+}
+
+function updateFieldEditStatus(reset = false) {
+  const status = $("fieldEditStatus");
+  const jobs = [...checkEditJobs.values()].filter((job) => job.source);
+  if (status) {
+    status.textContent = reset ? "" : jobs.some((job) => job.error) ? "计算失败，输入已保留，请重新编辑后重试。"
+      : jobs.length ? "源数据已修改，正在计算指标…" : status.textContent ? "指标已更新，仅当前页面生效。" : "";
+  }
+  if ($("exportFieldsBtn")) $("exportFieldsBtn").disabled = checkEditJobs.size > 0;
+}
+
+function saveSourceValue(companyId, fieldId, value) {
+  // A later source edit takes priority over an earlier check-page edit of the same field.
+  const period = periodValue();
+  if (Object.prototype.hasOwnProperty.call(pageCheckValues(companyId), fieldId)) {
+    state.checkValues[companyId][period] = { ...pageCheckValues(companyId) };
+    delete state.checkValues[companyId][period][fieldId];
+  }
+  delete state.checkScores[companyId]?.[period]?.[fieldId];
+  saveInitialValue(companyId, fieldId, value);
+}
+
+function bindSourceInputs() {
+  const controller = modelController, period = periodValue();
+  document.querySelectorAll("#fieldRows .source-value-input").forEach((input) => {
+    input.sourceController = controller;
+    let lastValue = input.value, composing = false;
+    const current = () => controller === modelController && period === periodValue() && !checkTransfer
+      && selectedCompanyIds().includes(input.dataset.companyId);
+    const save = () => {
+      if (!current() || composing || input.value === lastValue) return;
+      lastValue = input.value;
+      saveSourceValue(input.dataset.companyId, input.dataset.fieldId, input.value);
+      input.classList.add("edited-cell");
+      input.closest("td")?.classList.add("edited-cell");
+      queueCheckEdit(input.dataset.companyId, 250, true, true);
+    };
+    input.oninput = (event) => { if (!event?.isComposing) save(); };
+    input.oncompositionstart = () => { composing = true; };
+    input.oncompositionend = () => { composing = false; save(); };
+    input.onchange = () => {
+      if (!current()) return;
+      save();
+      const job = checkEditJobs.get(input.dataset.companyId);
+      if (job?.source && (!job.started || job.error)) queueCheckEdit(input.dataset.companyId, 0, true, true);
+    };
+    input.onblur = () => {
+      input.onchange();
+      if (current() && !composing) {
+        const row = state.fieldMatrix.rows.find((item) => item.company.company_id === input.dataset.companyId);
+        const field = state.fieldMatrix.fields.find((item) => item.field_id === input.dataset.fieldId);
+        lastValue = input.value = fieldDisplay(row?.values[input.dataset.fieldId], field);
+      }
+      setTimeout(() => {
+        if (current() && !activeSourceInput() && !fieldFilterDraft
+          && (state.fieldView.sort || Object.keys(state.fieldView.filters).length)) renderFieldTable();
+      }, 0);
+    };
+  });
+}
+
 function renderFieldTable() {
+  updateFieldEditStatus();
+  // Refresh calculated cells without replacing the input, caret or active row while typing.
+  if (activeSourceInput()) { updateFieldIndicatorCells(); return; }
   closeTableFilterPopover("field");
   const allColumns = fieldTableColumns();
   const columns = allColumns.filter((column) => column.kind !== "indicator" || state.showIndicators);
@@ -966,8 +1051,8 @@ function renderFieldTable() {
       <td class="sticky-col name-col" title="${esc(row.company.company_name)}">${esc(row.company.company_name)}</td>
       <td class="sticky-col op-col"><button class="tiny primary inspect-btn" data-id="${esc(row.company.company_id)}">排查</button></td>
       ${columns.map((column) => column.kind === "indicator"
-        ? `<td class="indicator-column" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(formulas.get(column.indicator_id))}">${esc(displayed[column.indicator_id] ?? "")}</td>`
-        : `<td class="source-column ${Object.prototype.hasOwnProperty.call(overrides, column.field_id) ? "edited-cell" : ""}" data-column-kind="source" data-field-id="${esc(column.field_id)}" title="${esc(fieldDisplay(row.values[column.field_id], column))}">${esc(fieldDisplay(row.values[column.field_id], column))}</td>`).join("")}
+        ? `<td class="indicator-column" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(formulas.get(column.indicator_id))}">${esc(fieldIndicatorDisplay(row.company.company_id, column.indicator_id, displayed))}</td>`
+        : `<td class="source-column ${Object.prototype.hasOwnProperty.call(overrides, column.field_id) ? "edited-cell" : ""}" data-column-kind="source" data-field-id="${esc(column.field_id)}"><input type="text" class="matrix-input source-value-input${Object.prototype.hasOwnProperty.call(overrides, column.field_id) ? " edited-cell" : ""}" data-company-id="${esc(row.company.company_id)}" data-field-id="${esc(column.field_id)}" data-period="${esc(periodValue())}" aria-label="${esc(row.company.company_name)} ${esc(column.label || column.field_id)}" title="${esc(column.label || column.field_id)} · 修改后自动计算，仅当前页面生效" value="${esc(fieldDisplay(row.values[column.field_id], column))}"></td>`).join("")}
     `;
     $("fieldRows").appendChild(tr);
   });
@@ -980,6 +1065,7 @@ function renderFieldTable() {
   document.querySelectorAll(".field-column-edit").forEach((button) => {
     if (button.dataset.fieldId) button.onclick = () => openFieldColumnModal(button.dataset.fieldId);
   });
+  bindSourceInputs();
   bindTableFilterButtons("field");
 }
 
@@ -1280,7 +1366,7 @@ function openFieldModal(companyId) {
   $("modalTitle").textContent = `字段数据修改：${matrixRow.company.company_name}`;
   $("modalFields").innerHTML = state.fieldMatrix.fields.map((field) => `
     <label class="modal-field">
-      <span>${esc(field.label || field.field_id)}<em>${esc(field.field_id)}</em></span>
+      <span>${esc(field.label || field.field_id)}</span>
       <input data-field-id="${esc(field.field_id)}" value="${esc(fieldDisplay(matrixRow.values[field.field_id], field))}">
     </label>
   `).join("");
@@ -1340,6 +1426,10 @@ async function resetToDatabaseValues() {
 async function exportFieldsExcel() {
   if (!state.samples.length) {
     alert("请先选择样本。");
+    return;
+  }
+  if (checkEditJobs.size) {
+    alert("指标正在计算或计算失败，请等待计算完成，或重新编辑后重试。");
     return;
   }
   try {
@@ -1828,36 +1918,49 @@ function savePageChecks(companyId, values, notes = null, period = periodValue())
 function cancelCheckEdits() {
   checkEditJobs.forEach((job) => clearTimeout(job.timer));
   checkEditJobs.clear();
+  updateFieldEditStatus(true);
   updateInitialValueStatus();
   updateStepNavigation();
 }
 
-function queueCheckEdit(companyId, delay = 250, initial = false) {
+function queueCheckEdit(companyId, delay = 250, initial = false, source = false) {
   const previous = checkEditJobs.get(companyId);
   if (previous) clearTimeout(previous.timer);
   const job = { controller: modelController, period: periodValue(), rules: state.ruleOverrides,
     values: state.checkValues[companyId]?.[periodValue()], sourceValues: state.overrides[companyId],
-    initial: initial || previous?.initial, scores: { ...state.indicatorScores[companyId] },
+    initial: initial || previous?.initial, source: source || previous?.source,
+    scores: { ...state.indicatorScores[companyId] }, checkScores: { ...pageCheckScores(companyId) },
     indicatorValues: { ...state.importedIndicatorValues[companyId] } };
   const current = () => checkEditJobs.get(companyId) === job && modelController === job.controller && periodValue() === job.period;
   checkEditJobs.set(companyId, job);
+  updateFieldEditStatus();
+  updateFieldIndicatorCells(companyId);
   updateInitialValueStatus();
   updateStepNavigation();
   $("checkTransferStatus").textContent = "指标值已保存到当前页面，正在计算得分…";
   updateCheckScoreInputs(companyId);
   renderSummaryPanels();
   job.timer = setTimeout(async () => {
+    job.started = true;
     let failed = false;
     try {
       const data = await postJson("/api/score-preview", { company_id: companyId, period: job.period, overrides: checkOverridesFromValues(companyId) });
       if (!current() || state.ruleOverrides !== job.rules || state.checkValues[companyId]?.[job.period] !== job.values || state.overrides[companyId] !== job.sourceValues) return;
       if (job.initial) {
-        const previousDetails = new Map(nonCheckDetails(state.results[companyId]).map((item) => [item.indicator_id, item]));
-        nonCheckDetails(data).forEach((item) => {
+        const previousDetails = new Map((job.source ? state.results[companyId]?.details || [] : nonCheckDetails(state.results[companyId])).map((item) => [item.indicator_id, item]));
+        (job.source ? data.details || [] : nonCheckDetails(data)).forEach((item) => {
           const before = previousDetails.get(item.indicator_id);
           if (before?.score === item.score && before?.raw_value === item.raw_value) return;
           if (state.indicatorScores[companyId]?.[item.indicator_id] === job.scores[item.indicator_id]) delete state.indicatorScores[companyId]?.[item.indicator_id];
           if (state.importedIndicatorValues[companyId]?.[item.indicator_id] === job.indicatorValues[item.indicator_id]) delete state.importedIndicatorValues[companyId]?.[item.indicator_id];
+        });
+      }
+      if (job.source) {
+        const previousChecks = new Map((state.results[companyId]?.check_fields || []).map((field) => [field.field_id, field]));
+        (data.check_fields || []).forEach((field) => {
+          const before = previousChecks.get(field.field_id);
+          if (before?.value === field.value && before?.score === field.score) return;
+          if (pageCheckScores(companyId)[field.field_id] === job.checkScores[field.field_id]) delete state.checkScores[companyId]?.[job.period]?.[field.field_id];
         });
       }
       state.results[companyId] = data;
@@ -1874,6 +1977,7 @@ function queueCheckEdit(companyId, delay = 250, initial = false) {
       if (current() && error.name !== "AbortError") {
         failed = true;
         job.error = error.message;
+        updateFieldIndicatorCells(companyId);
         updateCheckScoreInputs(companyId);
         renderSummaryPanels();
         $("checkTransferStatus").textContent = `重新计算失败：${error.message}。请重新编辑后重试，或重置为初始数据。`;
@@ -1881,6 +1985,7 @@ function queueCheckEdit(companyId, delay = 250, initial = false) {
     } finally {
       if (current() || (!failed && modelController === job.controller && periodValue() === job.period && !checkEditJobs.has(companyId))) {
         if (!failed) checkEditJobs.delete(companyId);
+        updateFieldEditStatus();
         updateInitialValueStatus();
         updateStepNavigation();
         if (!failed && !checkEditJobs.size && !checkTransfer) $("checkTransferStatus").textContent = checkScoreStatus(companyId) ? "部分公式无法计算，请检查指标值或修改得分。" : "指标值与得分已更新，仅当前页面生效。";

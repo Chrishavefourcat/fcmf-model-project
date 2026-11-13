@@ -77,6 +77,22 @@ class DataEntryTests(unittest.TestCase):
         self.assertNotIn("unused", [field["field_id"] for field in matrix["fields"]])
         self.assertEqual(self.store.indicators[0]["expression"], "metric + input_b + metric")
 
+    def test_source_preview_recalculates_dependencies_without_persisting_inputs(self):
+        def scores(overrides=None):
+            result = app.ScoreEngine(self.store, "shared", "2025-12-31", overrides).score()
+            return {detail["indicator_id"]: detail["score"] for detail in result["details"]}
+
+        before = scores()
+        changed = scores({"metric": "3.123456", "check_raw": "7"})
+        self.assertEqual(changed["A"], 8.25)
+        self.assertEqual(changed["B"], 6.25)
+        self.assertEqual(changed["E"], 8.25)
+        self.assertEqual(changed["X"], 7)
+        self.assertEqual(changed["C"], before["C"])
+        self.assertEqual(changed["D"], before["D"])
+        self.assertEqual(scores(), before)
+        self.assertEqual(self.store.field_matrix(["shared"], "2025-12-31")["rows"][0]["values"]["check_raw"], "0")
+
     def test_original_grade_reads_field_value_instead_of_calculated_grade(self):
         current = app.ScoreEngine(self.store, "shared", "2025-12-31").score()
         self.assertEqual(current["original_grade"], "R4+")

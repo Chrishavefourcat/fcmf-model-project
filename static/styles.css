@@ -176,6 +176,7 @@ tbody tr:hover > .empty { background: #fff; }
 .link-btn { min-height: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; color: #425e72; text-align: left; line-height: 1.7; font-weight: 500; }
 .link-btn:hover:not(:disabled) { border: 0; background: transparent; color: var(--blue); }
 .matrix-input { width: 72px; height: 26px; padding: 0 5px; border-color: #dbe4ec; border-radius: 4px; text-align: center; font-size: 12px; }
+.source-value-input { width: 120px; text-align: left; }
 .sticky-col { position: sticky; z-index: 2; background: #fff; }
 th.sticky-col { z-index: 3; background: #f3f7fb; }
 .seq-col { left: 0; width: var(--sequence-column); min-width: var(--sequence-column); max-width: var(--sequence-column); padding-right: 4px; padding-left: 4px; white-space: nowrap; }
