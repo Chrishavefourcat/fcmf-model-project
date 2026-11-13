@@ -5,9 +5,9 @@ const buttons=[{disabled:false},{disabled:false}];
 const fieldButton={dataset:{fieldId:'metric'},focus(){focusCount++;}};
 const decode=value=>value.replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
 const rows={html:'',set innerHTML(value){this.html=value;inputs=[...value.matchAll(/data-company-id="([^"]*)"[^>]*value="([^"]*)"/g)]
-  .map(match=>({dataset:{companyId:decode(match[1])},value:decode(match[2]),disabled:false}));},get innerHTML(){return this.html;},querySelectorAll(){return inputs;}};
+  .map(match=>({dataset:{companyId:decode(match[1])},value:decode(match[2]),disabled:false,classList:{toggle(){}}}));},get innerHTML(){return this.html;},querySelectorAll(){return inputs;}};
 const controls={yearSelect:{value:'2025'},reportSelect:{value:'12-31'},fieldColumnTitle:{},fieldColumnHelp:{},fieldColumnValueHead:{},fieldColumnStatus:{},
-  fieldColumnRows:rows,fieldColumnForm:{querySelectorAll(){return [...inputs,...buttons];}},
+  fieldColumnHead:{innerHTML:''},fieldColumnRows:rows,fieldColumnForm:{querySelectorAll(){return [...inputs,...buttons];}},
   fieldColumnModal:{open:false,showModal(){this.open=true;},close(){this.open=false;}}};
 const preview=payload=>({results:Object.fromEntries(payload.company_ids.map(id=>[id,{period_end:payload.period,
   details:[{indicator_id:'A',field_id:'metric',raw_value:Number(payload.overrides[id].metric),score:Number(payload.overrides[id].metric)*4},

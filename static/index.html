@@ -255,9 +255,13 @@
         <button id="fieldColumnClose" class="plain" type="button" aria-label="关闭按列修改">关闭</button>
       </div>
       <p id="fieldColumnHelp" class="column-edit-help"></p>
+      <div class="column-edit-toolbar">
+        <span id="fieldColumnViewStatus" class="muted" role="status"></span>
+        <button id="clearFieldColumnViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+      </div>
       <div class="column-edit-scroll">
         <table class="column-edit-table">
-          <thead><tr><th class="column-edit-seq">序号</th><th>主体名称</th><th id="fieldColumnValueHead">字段值</th></tr></thead>
+          <thead id="fieldColumnHead"></thead>
           <tbody id="fieldColumnRows"></tbody>
         </table>
       </div>
@@ -273,6 +277,10 @@
     <form id="ratingColumnForm" class="modal-card column-edit-card">
       <div class="modal-head"><strong id="ratingColumnTitle">按列修改</strong><button id="ratingColumnClose" class="plain" type="button" aria-label="关闭按列修改">关闭</button></div>
       <p id="ratingColumnHelp" class="column-edit-help"></p>
+      <div class="column-edit-toolbar">
+        <span id="ratingColumnViewStatus" class="muted" role="status"></span>
+        <button id="clearRatingColumnViewBtn" class="plain hidden" type="button">清除排序和筛选</button>
+      </div>
       <div class="column-edit-scroll"><table class="column-edit-table rating-column-table"><thead id="ratingColumnHead"></thead><tbody id="ratingColumnRows"></tbody></table></div>
       <div class="modal-foot"><span id="ratingColumnStatus" class="muted" role="status" aria-live="polite"></span><button id="ratingColumnCancel" class="plain" type="button">取消</button><button id="ratingColumnSave" class="primary" type="submit">保存并重新计算</button></div>
     </form>

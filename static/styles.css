@@ -177,6 +177,9 @@ tbody tr:hover > .empty { background: #fff; }
 .link-btn:hover:not(:disabled) { border: 0; background: transparent; color: var(--blue); }
 .matrix-input { width: 72px; height: 26px; padding: 0 5px; border-color: #dbe4ec; border-radius: 4px; text-align: center; font-size: 12px; }
 .source-value-input { width: 120px; text-align: left; }
+.indicator-weight { display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin: 0; color: inherit; font: inherit; white-space: nowrap; }
+.indicator-weight-input { width: 84px; }
+.indicator-weight-input[aria-invalid="true"] { border-color: var(--red); background: #fff1f2; }
 .sticky-col { position: sticky; z-index: 2; background: #fff; }
 th.sticky-col { z-index: 3; background: #f3f7fb; }
 .seq-col { left: 0; width: var(--sequence-column); min-width: var(--sequence-column); max-width: var(--sequence-column); padding-right: 4px; padding-left: 4px; white-space: nowrap; }
@@ -201,10 +204,11 @@ td.edited-cell, input.edited-cell, tbody tr:hover > td.edited-cell { background:
 .field-filter-trigger.active, .field-filter-trigger[aria-expanded="true"] { border-color: #aacff6; background: #e5f1ff; color: var(--blue); }
 .field-filter-trigger:hover:not(:disabled) { color: var(--blue); background: #eaf4ff; }
 /* Keep data-entry filters beside the heading, with room for the sort direction. */
-#fieldHead .field-filter-header { padding: 6px 46px 6px 10px; }
-#fieldHead .field-filter-trigger { top: 50%; bottom: auto; transform: translateY(-50%); }
+#fieldHead .field-filter-header, #initialHead .field-filter-header, #fieldColumnModal th.field-filter-header, #ratingColumnModal th.field-filter-header { padding: 6px 46px 6px 10px; }
+#fieldHead .field-filter-trigger, #initialHead .field-filter-trigger, #fieldColumnModal .field-filter-trigger, #ratingColumnModal .field-filter-trigger { top: 50%; bottom: auto; transform: translateY(-50%); }
+#initialHead th[rowspan] { vertical-align: middle; }
 #fieldHead .field-column-edit { min-height: 26px; padding: 2px 0; }
-#fieldHead .field-header-label, #fieldHead .field-column-label { min-width: 0; }
+#fieldHead .field-header-label, #fieldHead .field-column-label, #fieldColumnModal .field-header-label, #ratingColumnModal .field-header-label { min-width: 0; }
 .field-view-status { font-size: 12px; }
 .field-filter-popover { position: fixed; inset: auto; margin: 0; width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid #d9e5f2; border-radius: 10px; background: #fff; color: #40596c; box-shadow: 0 14px 42px rgba(28, 61, 98, .2); overflow: hidden; }
 .field-filter-popover:popover-open { display: flex; flex-direction: column; }
@@ -267,9 +271,12 @@ td.edited-cell, input.edited-cell, tbody tr:hover > td.edited-cell { background:
 .column-edit-dialog::backdrop { background: rgba(21, 33, 48, .4); backdrop-filter: blur(3px); }
 .column-edit-card { width: 100%; max-height: calc(100dvh - 32px); }
 .column-edit-help { margin: 0; padding: 15px 26px; background: #f7faff; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.column-edit-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 18px; }
+.column-edit-toolbar button { min-height: 28px; padding: 0 10px; font-size: 12px; }
 .column-edit-scroll { min-height: 0; max-height: 55vh; overflow: auto; border-top: 1px solid var(--line); }
 .column-edit-table { width: 100%; min-width: 0; table-layout: fixed; }
 .column-edit-table th { position: sticky; top: 0; z-index: 1; background: #f3f7fb; }
+#fieldColumnModal th.field-filter-header, #ratingColumnModal th.field-filter-header { position: sticky; }
 .column-edit-table th:last-child { width: 30%; }
 .column-edit-table .column-edit-seq { width: 62px; text-align: center; }
 .column-edit-table td, .column-edit-table th { padding: 13px 18px; text-align: left; }

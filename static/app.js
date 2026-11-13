@@ -47,6 +47,7 @@ let dataSourceBusy = false;
 let fieldColumnDraft = null;
 let ratingColumnDraft = null;
 let fieldFilterDraft = null;
+let fieldFilterHome = null;
 
 function cancelBulkSelection() {
   bulkSelection = null;
@@ -341,6 +342,9 @@ async function submitDataSource(event) {
 function updateStepNavigation() {
   $("scoringRulesBtn").disabled = !state.model || !state.samples.length || !!bulkSelection || !!checkTransfer;
   $("gradeRulesBtn").disabled = $("scoringRulesBtn").disabled;
+  document.querySelectorAll(".indicator-weight-input").forEach((input) => {
+    input.disabled = !state.model || !!bulkSelection || !!checkTransfer || checkEditJobs.size > 0;
+  });
   document.querySelectorAll(".step").forEach((button) => {
     const index = Number(button.dataset.step);
     button.disabled = index > state.unlockedStep || (index > state.step && checkEditJobs.size > 0) || (index === 4 && !checksReady()) || (index > 0 && !!bulkSelection)
@@ -678,6 +682,8 @@ function fieldTableDisplayRows(read = fieldTableReader()) {
 }
 
 function tableViewState(table = "field") {
+  if (table === "fieldColumn") return fieldColumnDraft?.view || { filters: {}, sort: null };
+  if (table === "ratingColumn") return ratingColumnDraft?.view || { filters: {}, sort: null };
   return state[`${table}View`];
 }
 
@@ -750,6 +756,8 @@ function finalTableData() {
 }
 
 function tableFilterContext(table = "field") {
+  if (table === "fieldColumn") return fieldColumnTableData();
+  if (table === "ratingColumn") return ratingColumnTableData();
   if (table === "initial") return initialTableData();
   if (table === "check") return checkTableData();
   if (table === "final") return finalTableData();
@@ -767,13 +775,14 @@ function tableDisplayRows(table, data) {
 }
 
 function renderTableView(table = "field") {
-  ({ field: renderFieldTable, initial: renderInitialMatrix, check: renderCheckMatrix, final: renderSummaryPanels })[table]();
+  ({ field: renderFieldTable, fieldColumn: renderFieldColumnTable, ratingColumn: renderRatingColumnTable,
+    initial: renderInitialMatrix, check: renderCheckMatrix, final: renderSummaryPanels })[table]();
 }
 
 function renderTableViewStatus(table, count, total) {
   const view = tableViewState(table), filterCount = Object.keys(view.filters).length;
   const status = $(`${table}ViewStatus`), clearButton = $(`clear${table[0].toUpperCase() + table.slice(1)}ViewBtn`);
-  if (status) status.textContent = table === "field" ? `${count} / ${total} 家公司`
+  if (status) status.textContent = ["field", "fieldColumn", "ratingColumn"].includes(table) ? `${count} / ${total} 家公司`
     : `显示 ${count} / ${total} 家公司${filterCount ? ` · 已筛选 ${filterCount} 列` : ""}${view.sort ? ` · ${view.sort.direction === "asc" ? "升序" : "降序"}` : ""}`;
   if (clearButton) clearButton.classList.toggle("hidden", !filterCount && !view.sort);
 }
@@ -792,6 +801,7 @@ function refreshRatingTableView(table) {
   const view = tableViewState(table);
   if (!view.sort && !Object.keys(view.filters).length) return;
   if (fieldFilterDraft?.table === table || $(`${table}Rows`)?.contains?.(document.activeElement)) return;
+  if (table === "initial" && $("initialHead")?.contains?.(document.activeElement)) return;
   renderTableView(table);
 }
 
@@ -810,6 +820,10 @@ function closeFieldFilterPopover(focus = false) {
   const open = popover?.matches?.(":popover-open");
   if (!draft && !open) return;
   if (open) popover.hidePopover();
+  if (fieldFilterHome) {
+    fieldFilterHome.appendChild(popover);
+    fieldFilterHome = null;
+  }
   document.querySelectorAll?.(".field-filter-trigger").forEach((button) => {
     button.setAttribute("aria-expanded", "false");
   });
@@ -866,6 +880,8 @@ function renderFieldFilterOptions() {
 }
 
 function openFieldFilterPopover(key, button, table = "field") {
+  if (table === "fieldColumn" && (!fieldColumnCurrent() || fieldColumnDraft.saving)) return;
+  if (table === "ratingColumn" && (!ratingColumnCurrent() || ratingColumnDraft.saving)) return;
   if (fieldFilterDraft?.key === key && fieldFilterDraft.table === table) { closeFieldFilterPopover(true); return; }
   closeFieldFilterPopover();
   const { columns, rows, read } = tableFilterContext(table), view = tableViewState(table);
@@ -874,14 +890,21 @@ function openFieldFilterPopover(key, button, table = "field") {
   const options = ColumnFilters.options(ColumnFilters.apply(rows, view.filters, null, read, key), key, read);
   const allValues = new Set(ColumnFilters.options(rows, key, read).map((option) => option.key));
   fieldFilterDraft = { table, key, column, button, options, allValues, selected: new Set(view.filters[key] ?? allValues),
-    controller: modelController, period: periodValue(), changed: false };
+    controller: modelController, period: periodValue(), changed: false,
+    columnDraft: table === "fieldColumn" ? fieldColumnDraft : table === "ratingColumn" ? ratingColumnDraft : null };
   $("fieldFilterTitle").textContent = column.label || column.field_id || column.indicator_id;
   $("fieldFilterTitle").title = $("fieldFilterTitle").textContent;
   $("fieldFilterSearch").value = "";
   $("fieldFilterClear").disabled = !Object.prototype.hasOwnProperty.call(view.filters, key);
   document.querySelectorAll("[data-field-sort]").forEach((control) => control.setAttribute("aria-pressed", String(control.dataset.fieldSort === "none"
     ? !view.sort : view.sort?.key === key && view.sort.direction === control.dataset.fieldSort)));
-  $("fieldFilterPopover").showPopover();
+  const popover = $("fieldFilterPopover");
+  // Keep filter controls inside the active modal so they remain interactive.
+  if (fieldFilterDraft.columnDraft) {
+    fieldFilterHome = popover.parentNode;
+    $(`${table}Modal`).appendChild(popover);
+  }
+  popover.showPopover();
   button.setAttribute("aria-expanded", "true");
   renderFieldFilterOptions();
   $("fieldFilterSearch").focus();
@@ -901,9 +924,15 @@ function chooseFieldFilterValues(mode, checked) {
   renderFieldFilterOptions();
 }
 
+function fieldFilterCurrent(draft) {
+  return draft && draft.controller === modelController && draft.period === periodValue()
+    && (draft.table !== "fieldColumn" || (fieldColumnCurrent(draft.columnDraft) && !draft.columnDraft.saving))
+    && (draft.table !== "ratingColumn" || (ratingColumnCurrent(draft.columnDraft) && !draft.columnDraft.saving));
+}
+
 function applyFieldFilter() {
   const draft = fieldFilterDraft;
-  if (!draft || draft.controller !== modelController || draft.period !== periodValue()) { closeFieldFilterPopover(); return; }
+  if (!fieldFilterCurrent(draft)) { closeFieldFilterPopover(); return; }
   const query = $("fieldFilterSearch").value.trim();
   const view = tableViewState(draft.table);
   if (draft.changed || query) {
@@ -918,15 +947,19 @@ function applyFieldFilter() {
 
 function sortFieldTable(direction) {
   const draft = fieldFilterDraft;
-  if (!draft || draft.controller !== modelController || draft.period !== periodValue()) return;
+  if (!fieldFilterCurrent(draft)) { closeFieldFilterPopover(); return; }
   tableViewState(draft.table).sort = direction === "none" ? null : { key: draft.key, direction };
   closeFieldFilterPopover();
   renderTableView(draft.table);
 }
 
 function clearFieldTableView(table = "field") {
+  if (table === "fieldColumn" && (!fieldColumnCurrent() || fieldColumnDraft.saving)) return;
+  if (table === "ratingColumn" && (!ratingColumnCurrent() || ratingColumnDraft.saving)) return;
   closeFieldFilterPopover();
-  state[`${table}View`] = { filters: {}, sort: null };
+  if (table === "fieldColumn") fieldColumnDraft.view = { filters: {}, sort: null };
+  else if (table === "ratingColumn") ratingColumnDraft.view = { filters: {}, sort: null };
+  else state[`${table}View`] = { filters: {}, sort: null };
   renderTableView(table);
 }
 
@@ -1070,9 +1103,65 @@ function renderFieldTable() {
   bindTableFilterButtons("field");
 }
 
+function fieldColumnCurrent(draft = fieldColumnDraft) {
+  return draft && fieldColumnDraft === draft && draft.controller === modelController && draft.period === periodValue()
+    && draft.revision === ruleRevision && selectedCompanyIds().join("\0") === draft.rows.map((row) => row.company_id).join("\0");
+}
+
+function captureFieldColumnInputs() {
+  const draft = fieldColumnDraft;
+  if (!draft || draft.saving) return;
+  const rows = new Map(draft.rows.map((row) => [row.company_id, row]));
+  $("fieldColumnRows").querySelectorAll("input[data-company-id]").forEach((input) => {
+    if (input.columnDraft === draft && rows.has(input.dataset.companyId)) rows.get(input.dataset.companyId).value = input.value;
+  });
+}
+
+function fieldColumnTableData() {
+  captureFieldColumnInputs();
+  const draft = fieldColumnDraft, field = draft?.field || {};
+  const valueKey = `source:${field.field_id}`;
+  const columns = [
+    { key: "company:company_name", label: "主体名称", read: (row) => filterCell(row.company_name) },
+    { key: valueKey, label: field.label || field.field_id, read: (row) => {
+      const value = row.value === row.initialValue ? row.originalValue : row.value;
+      return filterCell(value, NumberFormat.numericField(field), fieldDisplay(value, field));
+    } },
+  ];
+  return { rows: draft?.rows || [], columns, read: tableColumnReader(columns) };
+}
+
+function renderFieldColumnTable() {
+  const draft = fieldColumnDraft;
+  if (!draft || draft.saving) return;
+  if (!fieldColumnCurrent(draft)) { closeFieldColumnModal(true); return; }
+  closeTableFilterPopover("fieldColumn");
+  const data = fieldColumnTableData(), rows = tableDisplayRows("fieldColumn", data);
+  $("fieldColumnHead").innerHTML = `<tr><th class="column-edit-seq">序号</th>${data.columns.map((column, index) =>
+    `<th class="field-filter-header"${index ? ' id="fieldColumnValueHead"' : ""} title="${esc(column.label)}"><span class="field-header-label">${esc(column.label)}</span>${fieldFilterButton(column.key, column.label, "fieldColumn")}</th>`).join("")}</tr>`;
+  $("fieldColumnRows").innerHTML = rows.map((company, index) => `<tr>
+    <td class="column-edit-seq">${index + 1}</td>
+    <td class="column-edit-company"><strong>${esc(company.company_name)}</strong></td>
+    <td><input class="field-column-input${company.value !== company.initialValue ? " edited-cell" : ""}" type="text" autocomplete="off" data-company-id="${esc(company.company_id)}" aria-label="${esc(company.company_name)} ${esc(draft.field.label || draft.field.field_id)}" value="${esc(company.value)}"></td>
+  </tr>`).join("") || '<tr><td colspan="3" class="empty">暂无符合筛选条件的公司，可清除筛选后查看全部公司。</td></tr>';
+  const byId = new Map(draft.rows.map((row) => [row.company_id, row]));
+  $("fieldColumnRows").querySelectorAll("input[data-company-id]").forEach((input) => {
+    input.columnDraft = draft;
+    input.oninput = () => {
+      if (!fieldColumnCurrent(draft) || draft.saving) return;
+      const row = byId.get(input.dataset.companyId);
+      row.value = input.value;
+      input.classList.toggle("edited-cell", row.value !== row.initialValue);
+    };
+  });
+  renderTableViewStatus("fieldColumn", rows.length, data.rows.length);
+  bindTableFilterButtons("fieldColumn");
+}
+
 function closeFieldColumnModal(force = false) {
   const draft = fieldColumnDraft;
   if (draft?.saving && !force) return;
+  closeTableFilterPopover("fieldColumn");
   fieldColumnDraft = null;
   const dialog = $("fieldColumnModal");
   if (dialog?.open) dialog.close();
@@ -1093,18 +1182,15 @@ function openFieldColumnModal(fieldId) {
   }
   const rows = state.samples.map((company) => {
     const values = { ...matrix.get(company.company_id).values, ...checkOverridesFromValues(company.company_id) };
-    return { ...company, initialValue: fieldDisplay(values[fieldId], field) };
+    const value = fieldDisplay(values[fieldId], field);
+    return { ...company, originalValue: values[fieldId], initialValue: value, value };
   });
-  fieldColumnDraft = { field, rows, controller: modelController, period: periodValue(), revision: ruleRevision, saving: false };
+  fieldColumnDraft = { field, rows, view: { filters: {}, sort: null },
+    controller: modelController, period: periodValue(), revision: ruleRevision, saving: false };
   $("fieldColumnTitle").textContent = `按列修改：${field.label || fieldId}`;
-  $("fieldColumnHelp").textContent = `${periodValue()} · 共 ${rows.length} 家公司，可分别修改下方字段值。`;
-  $("fieldColumnValueHead").textContent = field.label || fieldId;
+  $("fieldColumnHelp").textContent = `${periodValue()} · 共 ${rows.length} 家公司。筛选仅影响显示，保存包含全部已修改公司。`;
   $("fieldColumnStatus").textContent = "保存后重新计算相关指标，仅当前页面生效。";
-  $("fieldColumnRows").innerHTML = rows.map((company, index) => `<tr>
-    <td class="column-edit-seq">${index + 1}</td>
-    <td class="column-edit-company"><strong>${esc(company.company_name)}</strong><small>${esc(company.company_id)}</small></td>
-    <td><input class="field-column-input" type="text" autocomplete="off" data-company-id="${esc(company.company_id)}" aria-label="${esc(company.company_name)} ${esc(field.label || fieldId)}" value="${esc(company.initialValue)}"></td>
-  </tr>`).join("");
+  renderFieldColumnTable();
   $("fieldColumnForm").querySelectorAll("input,button").forEach((control) => { control.disabled = false; });
   $("fieldColumnModal").showModal();
 }
@@ -1112,14 +1198,12 @@ function openFieldColumnModal(fieldId) {
 async function saveFieldColumn() {
   const draft = fieldColumnDraft;
   if (!draft || draft.saving) return;
-  const current = () => fieldColumnDraft === draft && draft.controller === modelController && draft.period === periodValue()
-    && draft.revision === ruleRevision && selectedCompanyIds().join("\0") === draft.rows.map((row) => row.company_id).join("\0");
+  const current = () => fieldColumnCurrent(draft);
   if (!current()) { closeFieldColumnModal(true); return; }
-  const originals = new Map(draft.rows.map((row) => [row.company_id, row.initialValue]));
-  const changed = [...$("fieldColumnRows").querySelectorAll("input[data-company-id]")]
-    .filter((input) => originals.has(input.dataset.companyId) && input.value !== originals.get(input.dataset.companyId))
-    .map((input) => [input.dataset.companyId, input.value]);
+  captureFieldColumnInputs();
+  const changed = draft.rows.filter((row) => row.value !== row.initialValue).map((row) => [row.company_id, row.value]);
   if (!changed.length) { closeFieldColumnModal(); return; }
+  closeTableFilterPopover("fieldColumn");
   draft.saving = true;
   $("fieldColumnForm").querySelectorAll("input,button").forEach((control) => { control.disabled = true; });
   $("fieldColumnStatus").textContent = `正在保存并重新计算 ${changed.length} 家公司的数据…`;
@@ -1167,14 +1251,15 @@ function ratingColumnButton(table, key, label) {
   return `<button class="field-column-edit rating-column-edit" type="button" data-edit-table="${table}" data-edit-key="${esc(key)}" title="${esc(label)} · 点击修改整组数据" aria-label="按列修改${esc(label)}"><span class="field-column-label">${esc(label)}</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m10.5 2.5 3 3M3 10l7.5-7.5a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L6 13l-3.5.5z"/></svg></button>`;
 }
 
-function ratingColumnCurrent(draft) {
-  return ratingColumnDraft === draft && draft.controller === modelController && draft.period === periodValue()
+function ratingColumnCurrent(draft = ratingColumnDraft) {
+  return draft && ratingColumnDraft === draft && draft.controller === modelController && draft.period === periodValue()
     && draft.revision === ruleRevision && selectedCompanyIds().join("\0") === draft.rows.map((row) => row.company_id).join("\0");
 }
 
 function closeRatingColumnModal(force = false) {
   const draft = ratingColumnDraft;
   if (draft?.saving && !force) return;
+  closeTableFilterPopover("ratingColumn");
   ratingColumnDraft = null;
   draft?.rows.forEach((row) => { clearTimeout(row.timer); row.version++; });
   if ($("ratingColumnModal")?.open) $("ratingColumnModal").close();
@@ -1202,18 +1287,52 @@ function openRatingColumnModal(table, key) {
     return { ...company, definition, values, original: { ...values }, manual: null, inputs: {}, version: 0, pending: false, error: "" };
   });
   const definition = definitions[0];
-  ratingColumnDraft = { table, key, fieldId: definition.field_id, rows, controller: modelController,
+  ratingColumnDraft = { table, key, fieldId: definition.field_id, rows, view: { filters: {}, sort: null }, controller: modelController,
     period: periodValue(), revision: ruleRevision, saving: false };
   const draft = ratingColumnDraft;
   $("ratingColumnModal").dataset.table = table;
   $("ratingColumnTitle").textContent = `按列修改：${definition.label || key}`;
-  $("ratingColumnHelp").textContent = `${draft.period} · 共 ${rows.length} 家公司。${table === "initial" ? "指标值变化后重新计算，赋分与得分按当前权重联动。" : "指标值变化后按公式计算得分，也可手动修改得分。"}`;
-  const columns = table === "initial" ? [["value", "指标值"], ["score", "赋分"], ["weighted", "得分"]] : [["value", "指标值"], ["score", "得分"]];
-  $("ratingColumnHead").innerHTML = `<tr><th class="column-edit-seq">序号</th><th>主体名称</th>${columns.map(([, label]) => `<th class="rating-column-value-head">${label}</th>`).join("")}</tr>`;
+  $("ratingColumnHelp").textContent = `${draft.period} · 共 ${rows.length} 家公司。${table === "initial" ? "指标值变化后重新计算，赋分与得分按当前权重联动。" : "指标值变化后按公式计算得分，也可手动修改得分。"}保存包含筛选隐藏行中的全部修改。`;
+  renderRatingColumnTable();
+  $("ratingColumnForm").querySelectorAll("input,button").forEach((control) => { control.disabled = false; });
+  updateRatingColumnStatus(draft);
+  $("ratingColumnModal").showModal();
+}
+
+function ratingColumnTableData() {
+  const draft = ratingColumnDraft;
+  const kinds = draft?.table === "initial" ? [["value", "指标值"], ["score", "赋分"], ["weighted", "得分"]] : [["value", "指标值"], ["score", "得分"]];
+  const columns = [{ key: "company:company_name", label: "主体名称", read: (row) => filterCell(row.company_name) },
+    ...kinds.map(([kind, label]) => ({ key: kind, label, read: (row) => {
+      let value = row.values[kind];
+      if (kind === "value") {
+        if (value === row.original.value) value = draft.table === "initial" ? indicatorRawValue(row.definition, row.company_id) : checkValue(row.company_id, row.definition);
+        const field = (state.fieldMatrix.fields || []).find((field) => field.field_id === draft.fieldId) || row.definition;
+        return filterCell(value, NumberFormat.numericField(field), fieldDisplay(value, field));
+      }
+      if (row.manual?.score !== null && row.manual) value = kind === "weighted" ? row.manual.weighted_exact : row.manual.score;
+      else if (row.values.value === row.original.value) value = draft.table === "check" ? effectiveCheckScore(row.company_id, row.definition)
+        : kind === "weighted" ? indicatorWeightedExact(row.company_id, row.definition) : indicatorScore(row.company_id, row.definition).score;
+      else value = row.previewValues?.[kind] ?? value;
+      return filterCell(value, true, row.values[kind]);
+    } })),
+  ];
+  return { rows: draft?.rows || [], columns, read: tableColumnReader(columns) };
+}
+
+function renderRatingColumnTable() {
+  const draft = ratingColumnDraft;
+  if (!draft || draft.saving) return;
+  if (!ratingColumnCurrent(draft)) { closeRatingColumnModal(true); return; }
+  closeTableFilterPopover("ratingColumn");
+  const data = ratingColumnTableData(), rows = tableDisplayRows("ratingColumn", data);
+  const columns = data.columns.filter((column) => column.key !== "company:company_name");
+  $("ratingColumnHead").innerHTML = `<tr><th class="column-edit-seq">序号</th>${data.columns.map((column) => `<th class="field-filter-header${column.key === "company:company_name" ? "" : " rating-column-value-head"}" title="${esc(column.label)}"><span class="field-header-label">${esc(column.label)}</span>${fieldFilterButton(column.key, column.label, "ratingColumn")}</th>`).join("")}</tr>`;
+  draft.rows.forEach((row) => { row.inputs = {}; });
   $("ratingColumnRows").innerHTML = rows.map((row, index) => `<tr>
-    <td class="column-edit-seq">${index + 1}</td><td class="column-edit-company"><strong>${esc(row.company_name)}</strong><small>${esc(row.company_id)}</small></td>
-    ${columns.map(([kind, label]) => `<td><input class="field-column-input" type="text" autocomplete="off" data-company-id="${esc(row.company_id)}" data-edit-kind="${kind}" aria-label="${esc(row.company_name)} ${label}" value="${esc(row.values[kind])}"${kind === "value" ? "" : ' inputmode="decimal"'}></td>`).join("")}
-  </tr>`).join("");
+    <td class="column-edit-seq">${index + 1}</td><td class="column-edit-company"><strong>${esc(row.company_name)}</strong></td>
+    ${columns.map(({key:kind,label}) => `<td><input class="field-column-input${row.values[kind] !== row.original[kind] ? " edited-cell" : ""}" type="text" autocomplete="off" data-company-id="${esc(row.company_id)}" data-edit-kind="${kind}" aria-label="${esc(row.company_name)} ${esc(label)}" value="${esc(row.values[kind])}"${kind === "value" ? "" : ' inputmode="decimal"'}></td>`).join("")}
+  </tr>`).join("") || `<tr><td colspan="${data.columns.length + 1}" class="empty">暂无符合筛选条件的公司，可清除筛选后查看全部公司。</td></tr>`;
   const companies = new Map(rows.map((row) => [row.company_id, row]));
   $("ratingColumnRows").querySelectorAll("input").forEach((input) => {
     const row = companies.get(input.dataset.companyId), kind = input.dataset.editKind;
@@ -1223,9 +1342,8 @@ function openRatingColumnModal(table, key) {
       if (kind !== "value" && row.manual?.score !== null) input.value = row.values[kind];
     };
   });
-  $("ratingColumnForm").querySelectorAll("input,button").forEach((control) => { control.disabled = false; });
-  updateRatingColumnStatus(draft);
-  $("ratingColumnModal").showModal();
+  renderTableViewStatus("ratingColumn", rows.length, data.rows.length);
+  bindTableFilterButtons("ratingColumn");
 }
 
 function updateRatingColumnStatus(draft) {
@@ -1244,12 +1362,14 @@ function syncRatingColumnRow(draft, row) {
     input.title = row.error || "";
   });
   updateRatingColumnStatus(draft);
+  refreshRatingTableView("ratingColumn");
 }
 
 function editRatingColumnCell(draft, row, kind, value) {
   if (!ratingColumnCurrent(draft) || draft.saving) return;
   if (kind === "value") {
     row.values.value = value;
+    row.previewValues = null;
     row.manual = null;
     row.error = "";
     clearTimeout(row.timer);
@@ -1288,11 +1408,13 @@ async function previewRatingColumnRow(draft, row) {
         const indicator = nonCheckDetails(result).find((item) => item.indicator_id === draft.key);
         if (!indicator) throw new Error("计算结果不完整");
         const score = clampScore(indicator.score, indicator), weight = num(indicator.weight);
+        row.previewValues = { score, weighted: weight === 0 ? String(score) : decimalProduct([score, weight]) };
         row.values.score = fmt(score);
         row.values.weighted = fmt(weight === 0 ? String(score) : decimalProduct([score, weight]));
       } else {
         const field = (result.check_fields || []).find((item) => item.field_id === draft.fieldId);
         if (!field) throw new Error("计算结果不完整");
+        row.previewValues = { score: field.score };
         row.values.score = fmt(field.score);
         if (numericCheckScore(field.score) === null) row.error = field.score_error || "公式无法得到有效数值，可手动填写得分。";
       }
@@ -1312,6 +1434,7 @@ async function saveRatingColumn() {
   if (!changed.length) { closeRatingColumnModal(); return; }
   const invalid = changed.find((row) => row.manual?.score === null);
   if (invalid) { $("ratingColumnStatus").textContent = `${invalid.company_name}：评分请输入有效数字。`; invalid.inputs[invalid.manual.kind]?.focus(); return; }
+  closeTableFilterPopover("ratingColumn");
   draft.saving = true;
   draft.rows.forEach((row) => { clearTimeout(row.timer); row.version++; row.pending = false; });
   $("ratingColumnForm").querySelectorAll("input,button").forEach((control) => { control.disabled = true; });
@@ -2218,6 +2341,7 @@ function updateInitialInputs(companyId) {
       if (input.dataset.companyId !== companyId) return;
       const indicator = details.get(input.dataset.indicatorId);
       if (!indicator) return;
+      if (selector !== ".indicator-value-input") input.dataset.weight = String(indicator.weight);
       const manual = Object.prototype.hasOwnProperty.call(state.indicatorScores[companyId] || {}, indicator.indicator_id);
       if (document.activeElement === input && (selector === ".indicator-value-input" || manual)) return;
       input.value = selector === ".indicator-value-input" ? indicatorRawDisplay(indicator, companyId)
@@ -2279,6 +2403,55 @@ function bindInitialInputs() {
   });
 }
 
+function applyInitialWeight(indicatorId, percent) {
+  const parsed = numericCheckScore(percent);
+  if (parsed === null || Number(parsed) < 0 || checkEditJobs.size || checkTransfer || bulkSelection || fieldColumnDraft || ratingColumnDraft) return false;
+  const weight = Number(decimalProduct([parsed, "0.01"]));
+  if (!Number.isFinite(weight)) return false;
+  const definitions = Object.values(state.results).flatMap((result) => nonCheckDetails(result)).filter((indicator) => indicator.indicator_id === indicatorId);
+  if (!definitions.length) return false;
+  if (definitions.every((indicator) => Number(indicator.weight) === weight)) return true;
+  ruleRevision++;
+  state.ruleOverrides = { ...state.ruleOverrides, [indicatorId]: { ...state.ruleOverrides[indicatorId], weight } };
+  Object.entries(state.results).forEach(([companyId, result]) => {
+    state.results[companyId] = { ...result, details: (result.details || []).map((indicator) => {
+      if (indicator.indicator_id !== indicatorId || indicator.field_type === "排查项") return indicator;
+      const updated = { ...indicator, weight };
+      const score = indicatorScore(companyId, updated).score;
+      const exact = weight === 0 ? String(score) : decimalProduct([score, weight]);
+      if (state.indicatorScores[companyId]?.[indicatorId]) setIndicatorScore(companyId, indicatorId, score, Number(exact), exact);
+      return { ...updated, weighted_score: Number(exact) };
+    }) };
+  });
+  state.samples.forEach((company) => updateInitialInputs(company.company_id));
+  renderSummaryPanels();
+  refreshRatingTableView("initial");
+  return true;
+}
+
+function bindInitialWeights() {
+  const controller = modelController, period = periodValue();
+  document.querySelectorAll(".indicator-weight-input").forEach((input) => {
+    const current = () => controller === modelController && period === periodValue();
+    input.disabled = !!bulkSelection || !!checkTransfer || checkEditJobs.size > 0;
+    input.oninput = () => {
+      if (!current() || input.disabled) return;
+      const valid = applyInitialWeight(input.dataset.indicatorId, input.value);
+      input.setAttribute("aria-invalid", String(!valid));
+      input.title = valid ? "修改百分比数值，仅当前页面生效" : "权重请输入非负数字";
+      input.classList.toggle("edited-cell", Object.prototype.hasOwnProperty.call(state.ruleOverrides[input.dataset.indicatorId] || {}, "weight"));
+    };
+    input.onblur = () => {
+      if (!current()) return;
+      const indicator = nonCheckDetails(state.results[state.samples[0]?.company_id]).find((item) => item.indicator_id === input.dataset.indicatorId);
+      if (indicator) input.value = fmt(decimalProduct([indicator.weight || 0, 100]));
+      input.setAttribute("aria-invalid", "false");
+      input.title = "修改百分比数值，仅当前页面生效";
+      setTimeout(() => { if (current()) refreshRatingTableView("initial"); }, 0);
+    };
+  });
+}
+
 function updateTotals(companyId) {
   const base = baseScore(companyId);
   document.querySelectorAll(`.base-total[data-company-id="${CSS.escape(companyId)}"]`).forEach((el) => (el.textContent = baseScoreText(companyId)));
@@ -2301,7 +2474,7 @@ function renderInitialMatrix() {
       ${indicators.map((ind) => `<th colspan="3">${ratingColumnButton("initial", ind.indicator_id, ind.label)}</th>`).join("")}
     </tr>
     <tr>
-      ${indicators.map((ind) => `<th colspan="3">权重：${fmt(decimalProduct([ind.weight || 0, 100]))}%</th>`).join("")}
+      ${indicators.map((ind) => `<th colspan="3"><label class="indicator-weight">权重：<input class="matrix-input indicator-weight-input${Object.prototype.hasOwnProperty.call(state.ruleOverrides[ind.indicator_id] || {}, "weight") ? " edited-cell" : ""}" type="number" min="0" step="any" inputmode="decimal" data-indicator-id="${esc(ind.indicator_id)}" aria-label="${esc(ind.label)} 权重（百分比）" title="修改百分比数值，仅当前页面生效" value="${esc(fmt(decimalProduct([ind.weight || 0, 100])))}"><span>%</span></label></th>`).join("")}
     </tr>
     <tr>
       ${indicators.map((ind) => ["value", "score", "weighted"].map((kind, index) => `<th class="field-filter-header">${["指标值", "赋分", "得分"][index]}${fieldFilterButton(`indicator-${kind}:${ind.indicator_id}`, `${ind.label} · ${["指标值", "赋分", "得分"][index]}`, "initial")}</th>`).join("")).join("")}
@@ -2329,6 +2502,7 @@ function renderInitialMatrix() {
     `;
   }).join("") || `<tr><td colspan="${4 + indicators.length * 3}" class="empty">${data.rows.length ? "暂无符合筛选条件的数据，可清除筛选后查看全部公司。" : "暂无结果"}</td></tr>`;
   bindInitialInputs();
+  bindInitialWeights();
   bindTableFilterButtons("initial");
 }
 
@@ -2735,10 +2909,10 @@ function wireEvents() {
   $("nextBtn").onclick = () => setStep(state.step + 1, true);
   $("modalClose").onclick = () => $("fieldModal").classList.add("hidden");
   $("modalSave").onclick = saveModalFields;
-  ["field", "initial", "check", "final"].forEach((table) => {
+  ["field", "initial", "check", "final", "fieldColumn", "ratingColumn"].forEach((table) => {
     $(`clear${table[0].toUpperCase() + table.slice(1)}ViewBtn`).onclick = () => clearFieldTableView(table);
   });
-  ["initial", "check"].forEach((table) => {
+  ["initial", "check", "fieldColumn", "ratingColumn"].forEach((table) => {
     $(`${table}Rows`).addEventListener("focusout", () => setTimeout(() => refreshRatingTableView(table), 0));
   });
   $("fieldFilterSearch").oninput = renderFieldFilterOptions;
@@ -2750,7 +2924,7 @@ function wireEvents() {
   $("fieldFilterCancel").onclick = () => closeFieldFilterPopover(true);
   $("fieldFilterClose").onclick = () => closeFieldFilterPopover(true);
   $("fieldFilterClear").onclick = () => {
-    if (!fieldFilterDraft) return;
+    if (!fieldFilterCurrent(fieldFilterDraft)) { closeFieldFilterPopover(); return; }
     const { table, key } = fieldFilterDraft;
     delete tableViewState(table).filters[key];
     closeFieldFilterPopover();
@@ -2761,7 +2935,7 @@ function wireEvents() {
     if (!$("fieldFilterPopover").matches(":popover-open")) closeFieldFilterPopover();
   });
   $("fieldFilterPopover").addEventListener("keydown", (event) => {
-    if (event.key === "Escape") { event.preventDefault(); closeFieldFilterPopover(true); }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeFieldFilterPopover(true); }
   });
   window.addEventListener("resize", positionFieldFilterPopover);
   window.addEventListener("resize", ensureCurrentStepVisible);
@@ -2771,7 +2945,11 @@ function wireEvents() {
   $("fieldColumnForm").onsubmit = (event) => { event.preventDefault(); saveFieldColumn(); };
   $("fieldColumnClose").onclick = () => closeFieldColumnModal();
   $("fieldColumnCancel").onclick = () => closeFieldColumnModal();
-  $("fieldColumnModal").addEventListener("cancel", (event) => { event.preventDefault(); closeFieldColumnModal(); });
+  $("fieldColumnModal").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    if (fieldFilterDraft?.table === "fieldColumn") closeFieldFilterPopover(true);
+    else closeFieldColumnModal();
+  });
   ["initialHead", "checkHead"].forEach((id) => {
     $(id).addEventListener("click", (event) => {
       const button = event.target.closest(".rating-column-edit");
@@ -2781,7 +2959,11 @@ function wireEvents() {
   $("ratingColumnForm").onsubmit = (event) => { event.preventDefault(); saveRatingColumn(); };
   $("ratingColumnClose").onclick = () => closeRatingColumnModal();
   $("ratingColumnCancel").onclick = () => closeRatingColumnModal();
-  $("ratingColumnModal").addEventListener("cancel", (event) => { event.preventDefault(); closeRatingColumnModal(); });
+  $("ratingColumnModal").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    if (fieldFilterDraft?.table === "ratingColumn") closeFieldFilterPopover(true);
+    else closeRatingColumnModal();
+  });
   $("checkModalClose").onclick = () => {
     clearTimeout(checkScoreTimer);
     checkPreviewVersion++;
