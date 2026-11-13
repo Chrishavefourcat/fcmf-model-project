@@ -207,6 +207,7 @@ class DataStore:
         fields = self.scoring_fields(indicators)
         return {
             "fields": fields,
+            "field_labels": {field_id: field["label"] or field_id for field_id, field in self.fields.items()},
             "columns": self.data_entry_columns(indicators),
             "rows": [
                 {

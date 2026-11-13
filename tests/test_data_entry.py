@@ -70,6 +70,13 @@ class DataEntryTests(unittest.TestCase):
         self.assertEqual(row["indicator_values"], {"A": 22, "B": 20, "C": 0, "D": 5, "E": 22, "X": 0})
         self.assertEqual(self.store.field_matrix(["shared"], "2024-12-31")["rows"][0]["values"]["input_b"], "99")
 
+    def test_matrix_supplies_model_field_labels_for_formula_display(self):
+        matrix = self.store.field_matrix(["shared"], "2025-12-31")
+        self.assertEqual(matrix["field_labels"]["input_b"], "源数据B")
+        self.assertEqual(matrix["field_labels"]["unused"], "不应出现的字段")
+        self.assertNotIn("unused", [field["field_id"] for field in matrix["fields"]])
+        self.assertEqual(self.store.indicators[0]["expression"], "metric + input_b + metric")
+
     def test_original_grade_reads_field_value_instead_of_calculated_grade(self):
         current = app.ScoreEngine(self.store, "shared", "2025-12-31").score()
         self.assertEqual(current["original_grade"], "R4+")

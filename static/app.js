@@ -635,23 +635,9 @@ function renderSamples() {
   updateSampleChecks();
 }
 
-function renderIndicatorCalculationWarning() {
-  const failed = new Map();
-  const period = periodValue();
-  state.samples.forEach((company) => {
-    const result = state.results[company.company_id];
-    if (!result || result.period_end !== period) return;
-    (result.details || []).forEach((indicator) => {
-      const value = indicator.score;
-      if ((typeof value === "number" || typeof value === "string") && String(value).trim() !== "" && Number.isFinite(Number(value))) return;
-      const name = indicator.label || indicator.indicator_id || "未命名指标";
-      failed.set(indicator.indicator_id || name, name);
-    });
-  });
-  const warning = $("indicatorCalculationWarning");
-  warning.textContent = failed.size ? `(指标：${[...failed.values()].join("、")} 公式无法计算)` : "";
-  warning.title = warning.textContent;
-  warning.classList.toggle("hidden", failed.size === 0);
+function formulaDisplayText(expression, fieldLabels) {
+  return String(expression || "").replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[A-Za-z_][A-Za-z0-9_]*\b/g,
+    (token) => fieldLabels.get(token) || token);
 }
 
 function fieldTableColumns() {
@@ -945,9 +931,14 @@ function clearFieldTableView(table = "field") {
 
 function renderFieldTable() {
   closeTableFilterPopover("field");
-  renderIndicatorCalculationWarning();
   const allColumns = fieldTableColumns();
   const columns = allColumns.filter((column) => column.kind !== "indicator" || state.showIndicators);
+  const fieldLabels = new Map([
+    ...(state.fieldMatrix.fields || []).map((field) => [field.field_id, field.label]),
+    ...Object.entries(state.fieldMatrix.field_labels || {}),
+  ]);
+  const formulas = new Map(columns.filter((column) => column.kind === "indicator")
+    .map((column) => [column.indicator_id, formulaDisplayText(column.expression || column.field_id, fieldLabels)]));
   const keys = new Set(["company:company_name", ...allColumns.map(fieldColumnKey)]);
   Object.keys(state.fieldView.filters).forEach((key) => { if (!keys.has(key)) delete state.fieldView.filters[key]; });
   if (state.fieldView.sort && !keys.has(state.fieldView.sort.key)) state.fieldView.sort = null;
@@ -961,8 +952,8 @@ function renderFieldTable() {
       <th class="sticky-col name-col field-filter-header">主体名称${fieldFilterButton("company:company_name", "主体名称")}</th>
       <th class="sticky-col op-col">操作</th>
       ${columns.map((column) => column.kind === "indicator"
-        ? `<th class="indicator-column field-filter-header" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(column.label || column.indicator_id)}&#10;${esc(column.expression || column.field_id || "")}"><span class="field-header-label">${esc(column.label || column.indicator_id)}</span><div class="muted">指标计算值</div>${fieldFilterButton(fieldColumnKey(column), column.label || column.indicator_id)}</th>`
-        : `<th class="source-column field-filter-header" data-column-kind="source" data-field-id="${esc(column.field_id)}"><button class="field-column-edit" type="button" data-field-id="${esc(column.field_id)}" title="${esc(column.label || column.field_id)} · 点击修改整列" aria-label="按列修改${esc(column.label || column.field_id)}" ${state.samples.length ? "" : "disabled"}><span class="field-column-label">${esc(column.label || column.field_id)}</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="m10.5 2.5 3 3M3 10l7.5-7.5a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L6 13l-3.5.5z"/></svg></button><div class="muted" title="${esc(column.field_id)}">${esc(column.field_id)}</div>${fieldFilterButton(fieldColumnKey(column), column.label || column.field_id)}</th>`).join("")}
+        ? `<th class="indicator-column field-filter-header" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(column.label || column.indicator_id)}&#10;${esc(formulas.get(column.indicator_id))}"><span class="field-header-label">${esc(column.label || column.indicator_id)}</span><div class="muted">指标计算值</div>${fieldFilterButton(fieldColumnKey(column), column.label || column.indicator_id)}</th>`
+        : `<th class="source-column field-filter-header" data-column-kind="source" data-field-id="${esc(column.field_id)}"><button class="field-column-edit" type="button" data-field-id="${esc(column.field_id)}" title="${esc(column.label || column.field_id)} · 点击修改整列" aria-label="按列修改${esc(column.label || column.field_id)}" ${state.samples.length ? "" : "disabled"}><span class="field-column-label">${esc(column.label || column.field_id)}</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" focusable="false"><path d="m10.5 2.5 3 3M3 10l7.5-7.5a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L6 13l-3.5.5z"/></svg></button>${fieldFilterButton(fieldColumnKey(column), column.label || column.field_id)}</th>`).join("")}
     </tr>
   `;
   $("fieldRows").innerHTML = "";
@@ -975,7 +966,7 @@ function renderFieldTable() {
       <td class="sticky-col name-col" title="${esc(row.company.company_name)}">${esc(row.company.company_name)}</td>
       <td class="sticky-col op-col"><button class="tiny primary inspect-btn" data-id="${esc(row.company.company_id)}">排查</button></td>
       ${columns.map((column) => column.kind === "indicator"
-        ? `<td class="indicator-column" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(column.expression || column.field_id || "")}">${esc(displayed[column.indicator_id] ?? "")}</td>`
+        ? `<td class="indicator-column" data-column-kind="indicator" data-indicator-id="${esc(column.indicator_id)}" title="${esc(formulas.get(column.indicator_id))}">${esc(displayed[column.indicator_id] ?? "")}</td>`
         : `<td class="source-column ${Object.prototype.hasOwnProperty.call(overrides, column.field_id) ? "edited-cell" : ""}" data-column-kind="source" data-field-id="${esc(column.field_id)}" title="${esc(fieldDisplay(row.values[column.field_id], column))}">${esc(fieldDisplay(row.values[column.field_id], column))}</td>`).join("")}
     `;
     $("fieldRows").appendChild(tr);
