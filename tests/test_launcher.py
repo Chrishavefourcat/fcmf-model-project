@@ -3,8 +3,10 @@
 import io
 import os
 import socket
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from rating import launcher
@@ -14,8 +16,21 @@ class LauncherTests(unittest.TestCase):
     def test_defaults_do_not_depend_on_working_directory(self):
         with patch.dict(os.environ, {}, clear=True):
             options = launcher.argument_parser().parse_args([])
-        self.assertEqual(options.models, str(launcher.PROJECT_ROOT / "models"))
+        self.assertEqual(options.models, "")
         self.assertEqual(options.port, 8765)
+
+    def test_default_start_waits_for_source_without_creating_models(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True), \
+                patch.object(launcher, "PROJECT_ROOT", Path(directory)), \
+                patch("rating.server.ApplicationServer") as server_type, \
+                patch.object(launcher.ConnectionConfig, "validate") as validate:
+            with redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(launcher.main(["--no-browser", "--port", "0"]), 0)
+            self.assertEqual(server_type.call_args.kwargs["backend"].config.directory, "")
+            validate.assert_not_called()
+            self.assertFalse(Path(directory, "models").exists())
+            self.assertIn("未选择，请在页面点击", output.getvalue())
+            server_type.return_value.server_close.assert_called_once()
 
     def test_command_line_overrides_environment(self):
         with patch.dict(os.environ, {"MODEL_DIRECTORY": "env-models", "PORT": "9000"}):
@@ -58,7 +73,7 @@ class LauncherTests(unittest.TestCase):
     def test_unavailable_directory_and_occupied_port_have_clear_errors(self):
         with patch.object(launcher.ConnectionConfig, "validate", side_effect=ValueError("无效模型目录")):
             with redirect_stderr(io.StringIO()) as output:
-                self.assertEqual(launcher.main(["--no-browser"]), 1)
+                self.assertEqual(launcher.main(["--models", "missing-models", "--no-browser"]), 1)
             self.assertIn("无效模型目录", output.getvalue())
         with socket.socket() as occupied:
             occupied.bind(("127.0.0.1", 0))

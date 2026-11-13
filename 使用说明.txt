@@ -5,7 +5,7 @@
    首次自动准备环境需要联网访问 python.org 和 Python 包安装源；网络失败时按提示处理后重新双击。已在 Windows x64 验证，x86 / ARM64 有下载配置但尚未实机验证。
    Linux 在项目目录执行 sh start.sh；先交由 agent 准备环境时请阅读“启动依赖与Agent操作清单.md”的 Linux 专节。
    启动脚本首次创建 .venv 虚拟环境并安装 requirements.txt 依赖，需要网络或配置好的离线安装源。以后运行复用环境，依赖清单变化或环境不完整时才重新安装。
-2. 服务启动后自动用默认浏览器打开评分页面。默认地址端口为 8765，默认数据源为项目 models 文件夹；手动重开页面时，使用终端打印的完整地址（包括会话参数）。
+2. 服务启动后自动用默认浏览器打开评分页面。默认地址端口为 8765，初始显示“未选择数据源”，由客户进入页面后选择自己的数据库；没有 models 文件夹也能启动。手动重开页面时，使用终端打印的完整地址（包括会话参数）。
 3. 在第一步，点击“模型选择”右侧的“数据源选择”，输入本机模型文件夹或单个 .db 文件路径；也可点输入框右侧“浏览…”下拉中的“选择文件夹”或“选择 DB 文件”，在 Windows 系统对话框中选取，回填路径后点“使用此数据源”确认加载。
    取消浏览或浏览失败时，保留原输入和原数据源。浏览仅选择本机路径，不上传、不复制文件，业务直接使用原文件；轻量系统对话框不增加 Qt 或打包依赖。
 4. 从下拉框选择模型，点击“样本选择”输入框即可浏览公司候选列表，也可输入名称、统一代码或债券代码搜索；点击候选公司加入样本，再按步骤完成数据录入和评级。
@@ -70,13 +70,13 @@
 运行环境与启动参数
 - Linux 在项目目录运行 sh start.sh；仅准备环境运行 sh start.sh --check-only；不打开浏览器运行 sh start.sh --no-browser --port 0。参数使用 --models、--port、--no-browser。
 - Linux 需要 Python 3.10+、pip、venv、sqlite3 和浏览器；“浏览”选择窗口目前仅适用于 Windows，Linux 请直接输入模型路径或通过 --models 指定。macOS 尚未实测。
-- 给接收方 agent 的安装和启动清单见同目录“启动依赖与Agent操作清单.md”。交付只携带代码、页面资源、所需模型和说明，Python 与依赖在目标电脑安装。
+- 给接收方 agent 的安装和启动清单见同目录“启动依赖与Agent操作清单.md”。交付默认只携带代码、页面资源和说明，不附带示例模型，Python 与依赖在目标电脑安装。
 - 固定依赖为 SQLAlchemy==2.0.57、openpyxl==3.1.5，兼容 Python 3.10。无需 Node.js、npm、Java 或额外数据库服务。
 - 仅准备并校验环境：powershell -File .\start.ps1 -CheckOnly。首次指定 Python：powershell -File .\start.ps1 -Python "C:\实际Python目录\python.exe" -CheckOnly。
 - 禁止自动下载 Python：powershell -File .\start.ps1 -NoAutoPython -CheckOnly；仍可复用已有 Python 缓存，缺少解释器时提示手动准备。
 - Python 3.10+，以及 Chrome、Edge、Firefox 等常用浏览器；Windows 可直接使用启动脚本。
 - 仅安装 requirements.txt 中的 SQLAlchemy 和 openpyxl。SQLite 随 Python 提供，无需另装 MySQL、SQLite 服务或数据库账号。
-- 模型文件和所在文件夹需具备读写权限。项目 models 文件夹中保存默认模型数据。
+- 模型文件和所在文件夹需具备读写权限。项目 models 文件夹仅是可选示例，不自动加载；不携带或删除该目录不会影响打开应用，评分前再选择有效数据源。
 - 已安装依赖的环境可以直接运行 python app.py。手动准备环境的方法见 README.md。
 - 指定数据源和端口：python app.py --models "E:\模型文件" --port 8766；--models 也可填写单个 .db 文件的完整路径。
 - 暂不自动打开浏览器：python app.py --no-browser，再手动打开终端打印的完整地址。

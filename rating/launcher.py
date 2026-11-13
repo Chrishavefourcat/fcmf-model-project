@@ -26,8 +26,8 @@ def argument_parser():
     parser = argparse.ArgumentParser(description="从源码启动模型评级页面")
     parser.add_argument(
         "--models", metavar="PATH",
-        default=os.environ.get("MODEL_DIRECTORY") or str(PROJECT_ROOT / "models"),
-        help="SQLite 模型文件夹或单个 .db 文件（默认：MODEL_DIRECTORY 或项目 models 目录）",
+        default=os.environ.get("MODEL_DIRECTORY", ""),
+        help="预选 SQLite 模型文件夹或单个 .db 文件（默认：MODEL_DIRECTORY；未设置时在页面选择）",
     )
     parser.add_argument(
         "--port", type=port_number, default=os.environ.get("PORT") or "8765",
@@ -41,10 +41,11 @@ def main(argv=None):
     from .server import ApplicationServer
 
     options = argument_parser().parse_args(argv)
-    config = ConnectionConfig(str(Path(options.models).expanduser().resolve()))
+    config = ConnectionConfig(str(Path(options.models).expanduser().resolve()) if options.models else "")
     backend = None
     try:
-        config.validate()
+        if config.directory:
+            config.validate()
         backend = DatabaseBackend(config)
         server = ApplicationServer(("127.0.0.1", options.port), backend=backend, private=True)
     except (OSError, ValueError) as error:
@@ -56,7 +57,7 @@ def main(argv=None):
         return 1
 
     try:
-        print(f"模型数据源：{config.directory}", flush=True)
+        print(f"模型数据源：{config.directory or '未选择，请在页面点击“数据源选择”'}", flush=True)
         print(f"页面地址：{server.browser_url}", flush=True)
         print("在此终端按 Ctrl+C 停止服务；关闭浏览器标签页后服务仍继续运行。", flush=True)
         if not options.no_browser:

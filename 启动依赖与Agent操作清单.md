@@ -12,7 +12,7 @@
 | 浏览器 | Edge、Chrome、Firefox 等现代浏览器 | 已有浏览器可复用，无需专门安装开发工具 |
 | 启动命令环境 | Windows PowerShell 5.1+，或 Linux 的 POSIX sh | Windows 通常自带 PowerShell；Linux 无需为本应用安装 PowerShell |
 | Python 库 | SQLAlchemy==2.0.57、openpyxl==3.1.5 | 在本项目虚拟环境内执行 pip install -r requirements.txt |
-| 模型文件 | 至少一个本应用格式的 SQLite .db 文件 | 默认使用随附 models/，也可通过启动参数或页面选择已有模型文件 |
+| 模型文件 | 打开应用时无需提供；实际评分前需选择本应用格式的 SQLite .db 文件 | 默认进入页面后手动选择客户自己的文件夹或单个 .db；也可通过启动参数显式预选，不依赖 models/ |
 
 SQLAlchemy 选用兼容 Python 3.10 的 2.0 系列。不要自行升级为要求更高 Python 版本的 2.1 系列。pip 会自动安装这些库需要的间接依赖，无需逐个手工下载。
 
@@ -44,13 +44,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -CheckOnly
 
 请在当前源码目录完成以下操作：
 
-1. 确认当前操作系统和处理器架构。检查源码目录含 app.py、start.ps1、python-bootstrap.ps1、start.sh、requirements.txt、rating/、static/、models/。不要从开发者电脑复制 Python、.venv、node_modules 或测试工具。Windows 按下面的 PowerShell 步骤执行；Linux 按后面的 Linux 专节执行。
+1. 确认当前操作系统和处理器架构。检查源码目录含 app.py、start.ps1、python-bootstrap.ps1、start.sh、requirements.txt、rating/、static/。models/ 是可选示例，不要求存在。不要从开发者电脑复制 Python、.venv、node_modules 或测试工具。Windows 按下面的 PowerShell 步骤执行；Linux 按后面的 Linux 专节执行。
 2. Windows 优先执行上面的 `-CheckOnly`，由启动脚本检查并自动补齐 Python 和项目依赖。若自动下载受企业网络或系统策略限制，再探测已有 Python 的实际版本及路径，例如 py -3 --version、python --version；必要时从 Python 官方准备完整发行版并用 -Python 指定。不要降级或覆盖用户已有的其他 Python。Linux 使用后面的发行版安装步骤。
 3. 验证所选解释器能够 import sqlite3、venv、ensurepip，并记录解释器绝对路径。如果浏览器缺失，安装用户认可的现代浏览器。
 4. 如采用手动指定解释器，使用下面的 -CheckOnly 命令在项目内创建 .venv、按 requirements.txt 安装并校验依赖。-Python 替换为第 2 步确认的真实绝对路径。自动准备成功后无需重复手动安装。不要把 Python 库安装到系统全局环境。
 5. 如果接收的目录已有 .venv，先检查是否来自当前电脑且能运行。来源不明、路径失效、版本过低或需要切换解释器时，先将 .venv 改名保留，再重新创建。-Python 只在首次创建 .venv 时生效。
 6. 环境检查通过后，执行启动命令，保持服务进程运行，向用户提供终端打印的完整“页面地址”。地址可能包含会话参数，不能省略这些参数。
-7. 用该地址访问页面，确认能加载首页、静态资源和模型列表。仅启动验收不修改模型数据库；不要用已有业务数据做破坏性验证。
+7. 用该地址访问页面，确认能加载首页和静态资源，默认显示“未选择数据源”并提示用户选择路径。没有 models/ 或尚未选择数据库应能正常打开页面。客户提供有效数据库后，再通过“数据源选择”确认模型列表和读取功能；仅启动验收不修改客户数据库，不用已有业务数据做破坏性验证。
 
 安装和检查环境（示例路径必须替换为真实路径）：
 
@@ -146,7 +146,7 @@ macOS 尚未实测；Linux 的某个发行版通过测试，不代表其他发�
 
 ## 源码交付范围
 
-交付源码仅需：根目录运行用 Python 文件、start.bat、start.ps1、python-bootstrap.ps1、start.sh、requirements.txt、rating/、static/、所需的 models/*.db，以及本清单和使用说明。
+交付源码仅需：根目录运行用 Python 文件、start.bat、start.ps1、python-bootstrap.ps1、start.sh、requirements.txt、rating/、static/，以及本清单和使用说明。默认不带 models/ 或任何示例数据库，客户启动后手动选择自己的数据源。若需要附带示例，开发者可在生成交付目录时增加 --include-models。
 
 不应交付：.venv、Python 或 Node 运行时、node_modules、backups、downloads、tests、__pycache__、*.pyc、开发测试截图和历史构建产物。开发目录的 tools/prepare_delivery.py 可以生成只含必要内容的交付目录；交付目录内不含该开发工具。
 

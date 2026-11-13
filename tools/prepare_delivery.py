@@ -1,4 +1,4 @@
-"""Copy only runtime source, assets, model files and user documentation."""
+"""Copy runtime source, assets and documentation, with optional example models."""
 
 import argparse
 import os
@@ -18,7 +18,6 @@ ROOT_FILES = (
 SOURCE_TYPES = {
     "rating": {".py", ".ps1", ".cs"},
     "static": {".html", ".css", ".js", ".svg", ".png", ".jpg", ".ico", ".woff", ".woff2"},
-    "models": {".db"},
 }
 IGNORED_DIRECTORIES = {"__pycache__", "node_modules", ".venv"}
 
@@ -31,13 +30,14 @@ def is_link(path):
     )
 
 
-def source_files():
+def source_files(include_models=False):
     for name in ROOT_FILES:
         path = ROOT / name
         if not path.is_file() or is_link(path):
             raise ValueError(f"Required source file is missing or is a link: {path}")
         yield path
-    for directory, extensions in SOURCE_TYPES.items():
+    source_types = {**SOURCE_TYPES, **({"models": {".db"}} if include_models else {})}
+    for directory, extensions in source_types.items():
         parent = ROOT / directory
         if not parent.is_dir() or is_link(parent):
             raise ValueError(f"Required directory is missing or is a link: {parent}")
@@ -57,13 +57,14 @@ def source_files():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "交付源码", help="New output directory; existing directories are never overwritten")
+    parser.add_argument("--include-models", action="store_true", help="Include optional example models/*.db; users select their own data source by default")
     options = parser.parse_args()
     if sys.version_info < (3, 10):
         parser.error("Python 3.10+ is required")
     destination = options.output.resolve()
     if destination.exists():
         parser.error(f"Output already exists. Choose a new --output directory: {destination}")
-    sources = list(source_files())
+    sources = list(source_files(include_models=options.include_models))
     destination.mkdir(parents=True)
     total = 0
     for source in sources:

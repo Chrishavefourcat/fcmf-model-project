@@ -241,7 +241,7 @@ async function applyDataSource(data) {
   $("dataSourcePath").textContent = data.directory ? `数据源：${data.directory}` : "未选择数据源";
   $("dataSourcePath").title = data.directory || "";
   const select = $("modelSelect");
-  select.replaceChildren(new Option(state.models.length ? "请选择模型" : "暂无可用模型", ""));
+  select.replaceChildren(new Option(!data.directory ? "请先选择数据源" : state.models.length ? "请选择模型" : "暂无可用模型", ""));
   state.models.forEach((model) => {
     const fileName = model.file_name || `${model.database}.db`;
     const option = new Option(fileName, model.database);

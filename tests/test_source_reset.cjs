@@ -46,6 +46,16 @@ vm.runInNewContext(source + `
 
 (async () => {
   const {h, page} = context;
+  await h.applyDataSource({source_id: 'unselected', directory: '', models: []});
+  assert.equal(page.database, '');
+  assert.equal(page.model, null);
+  assert.equal(controls.dataSourcePath.textContent, '未选择数据源');
+  assert.equal(controls.modelSelect.disabled, true);
+  assert.equal(controls.modelSelect.options[0].textContent, '请先选择数据源');
+  assert.match(controls.modelStatus.textContent, /数据源选择/);
+  h.selectDataSource();
+  assert.equal(controls.dataSourceDirectory.value, '');
+  controls.dataSourceModal.close();
   await h.applyDataSource(folderA);
   Object.assign(page, {samples: [{company_id: 'old'}], companies: [{company_id: 'old'}],
     results: {old: {}}, fieldMatrix: {fields: [{}], rows: [{}]}, overrides: {old: {}},
